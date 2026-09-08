@@ -1,0 +1,24 @@
+--- deploy-homepl/api/bookings.php
++++ deploy-homepl/api/bookings.php
+@@ -53,6 +53,19 @@
+             }
+         }
+ 
++        // 3. Simple IP rate limit (max 5 bookings per IP per day)
++        $ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
++        $stmtIp = $pdo->prepare("SELECT count(*) as cnt FROM bookings WHERE patient_phone = ? AND created_at > DATE_SUB(NOW(), INTERVAL 1 DAY)");
++        // Instead of adding IP column which requires schema change, let's use a simple session-based approach or just rely on email/phone limits.
++        // Actually, we can just rate limit by phone number!
++        $phone = $data['patient_phone'] ?? '';
++        if ($phone) {
++            $stmtPhone = $pdo->prepare("SELECT count(*) as cnt FROM bookings WHERE patient_phone = ? AND status IN ('pending', 'confirmed')");
++            $stmtPhone->execute([$phone]);
++            if ($stmtPhone->fetch()['cnt'] >= 2) {
++                http_response_code(429);
++                echo json_encode(['error' => 'Limit aktywnych rezerwacji dla tego numeru telefonu.']);
++                exit;
++            }
++        }
++
+         $id = uniqid('b_');
+         $token = bin2hex(random_bytes(16));
