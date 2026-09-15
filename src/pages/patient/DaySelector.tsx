@@ -61,9 +61,8 @@ export default function DaySelector() {
         <p className="text-neutral-500 text-sm">{state.visitType?.name}</p>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-neutral-200 p-6 sm:p-8 space-y-8">
+      <div className="bg-white rounded-2xl shadow-sm border border-brand-100 p-6 sm:p-8 space-y-8">
         <div>
-          <p className="text-[11px] uppercase font-bold text-neutral-500 mb-4 tracking-widest">Krok 2: Wybierz termin</p>
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-sm font-semibold capitalize text-neutral-900">
               {format(currentMonth, 'LLLL yyyy', { locale: pl })}
@@ -102,9 +101,9 @@ export default function DaySelector() {
                   className={cn(
                     "aspect-square flex items-center justify-center rounded-lg text-sm transition-all relative",
                     isAvailable && !isPast
-                      ? "hover:bg-neutral-50 text-neutral-900 font-medium cursor-pointer hover:text-neutral-900"
+                      ? "hover:bg-brand-50 text-neutral-900 font-medium cursor-pointer hover:text-brand-700"
                       : "text-[#374151] cursor-not-allowed",
-                    isToday(day) && !isPast && "after:absolute after:bottom-1 after:w-1 after:h-1 after:bg-[#64A377] after:rounded-xl"
+                    isToday(day) && !isPast && "after:absolute after:bottom-1 after:w-1 after:h-1 after:bg-brand-600 after:rounded-xl"
                   )}
                 >
                   {format(day, 'd')}

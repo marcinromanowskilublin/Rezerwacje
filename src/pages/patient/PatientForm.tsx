@@ -40,58 +40,55 @@ export default function PatientForm() {
         <p className="text-neutral-500 text-sm">Wprowadź dane kontaktowe.</p>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-neutral-200 p-6 sm:p-8 space-y-6">
-        <div>
-           <p className="text-[11px] uppercase font-bold text-neutral-500 mb-4 tracking-widest">Krok 4: Formularz</p>
-           <form onSubmit={handleSubmit} className="space-y-5">
-             <div className="space-y-4">
-              <div>
-                <label htmlFor="name" className="block text-[11px] uppercase font-bold text-neutral-500 tracking-widest mb-1.5">Imię i nazwisko</label>
-                <input
-                  type="text"
-                  id="name"
-                  required
-                  value={formData.name}
-                  onChange={e => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full h-12 px-4 rounded-xl border border-neutral-200 bg-white text-neutral-900 focus:bg-neutral-50 focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900 outline-none transition-all text-sm"
-                />
-              </div>
-              
-              {/* Honeypot field for basic spam protection */}
-              <div className="hidden" aria-hidden="true">
-                <label htmlFor="website">Strona WWW (nie wypełniaj)</label>
-                <input type="text" id="website" tabIndex={-1} autoComplete="off" />
-              </div>
+      <div className="bg-white rounded-2xl shadow-sm border border-brand-100 p-6 sm:p-8">
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div className="space-y-4">
+           <div>
+             <label htmlFor="name" className="block text-[11px] uppercase font-bold text-neutral-500 tracking-widest mb-1.5">Imię i nazwisko</label>
+             <input
+               type="text"
+               id="name"
+               required
+               value={formData.name}
+               onChange={e => setFormData({ ...formData, name: e.target.value })}
+               className="w-full h-12 px-4 rounded-xl border border-neutral-200 bg-white text-neutral-900 focus:bg-brand-50 focus:border-brand-600 focus:ring-1 focus:ring-brand-600 outline-none transition-all text-sm"
+             />
+           </div>
 
-              <div>
-                <label htmlFor="email" className="block text-[11px] uppercase font-bold text-neutral-500 tracking-widest mb-1.5">Adres e-mail</label>
-                <input
-                  type="email"
-                  id="email"
-                  required
-                  value={formData.email}
-                  onChange={e => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full h-12 px-4 rounded-xl border border-neutral-200 bg-white text-neutral-900 focus:bg-neutral-50 focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900 outline-none transition-all text-sm"
-                />
-              </div>
-              <div>
-                <label htmlFor="phone" className="block text-[11px] uppercase font-bold text-neutral-500 tracking-widest mb-1.5">Numer telefonu</label>
-                <input
-                  type="tel"
-                  id="phone"
-                  required
-                  value={formData.phone}
-                  onChange={e => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full h-12 px-4 rounded-xl border border-neutral-200 bg-white text-neutral-900 focus:bg-neutral-50 focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900 outline-none transition-all text-sm"
-                />
-              </div>
-            </div>
+           {/* Honeypot field for basic spam protection */}
+           <div className="hidden" aria-hidden="true">
+             <label htmlFor="website">Strona WWW (nie wypełniaj)</label>
+             <input type="text" id="website" tabIndex={-1} autoComplete="off" />
+           </div>
 
-            <div className="pt-4">
-              <Button type="submit" className="w-full h-14" size="lg">Przejdź do podsumowania</Button>
-            </div>
-           </form>
-        </div>
+           <div>
+             <label htmlFor="email" className="block text-[11px] uppercase font-bold text-neutral-500 tracking-widest mb-1.5">Adres e-mail</label>
+             <input
+               type="email"
+               id="email"
+               required
+               value={formData.email}
+               onChange={e => setFormData({ ...formData, email: e.target.value })}
+               className="w-full h-12 px-4 rounded-xl border border-neutral-200 bg-white text-neutral-900 focus:bg-brand-50 focus:border-brand-600 focus:ring-1 focus:ring-brand-600 outline-none transition-all text-sm"
+             />
+           </div>
+           <div>
+             <label htmlFor="phone" className="block text-[11px] uppercase font-bold text-neutral-500 tracking-widest mb-1.5">Numer telefonu</label>
+             <input
+               type="tel"
+               id="phone"
+               required
+               value={formData.phone}
+               onChange={e => setFormData({ ...formData, phone: e.target.value })}
+               className="w-full h-12 px-4 rounded-xl border border-neutral-200 bg-white text-neutral-900 focus:bg-brand-50 focus:border-brand-600 focus:ring-1 focus:ring-brand-600 outline-none transition-all text-sm"
+             />
+           </div>
+         </div>
+
+         <div className="pt-4">
+           <Button type="submit" className="w-full h-14" size="lg">Przejdź do podsumowania</Button>
+         </div>
+        </form>
       </div>
     </div>
   );

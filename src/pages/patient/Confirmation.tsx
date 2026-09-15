@@ -1,13 +1,22 @@
+import { useEffect } from 'react';
 import { useLocation, Link, Navigate } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import { CheckCircle2 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Booking } from '../../types';
+import { useBooking } from './BookingContext';
 
 export default function Confirmation() {
   const location = useLocation();
+  const { reset } = useBooking();
   const booking = location.state?.booking as Booking;
+
+  // Reset only after this screen has mounted, so the still-transitioning
+  // Summary/PatientForm guard clauses don't hijack this navigation.
+  useEffect(() => {
+    reset();
+  }, [reset]);
 
   if (!booking) {
     return <Navigate to="/" replace />;
@@ -18,8 +27,8 @@ export default function Confirmation() {
   return (
     <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-md mx-auto w-full text-center mt-4">
       <div className="flex justify-center mb-6">
-        <div className="w-20 h-20 bg-neutral-50 rounded-xl flex items-center justify-center border-4 border-neutral-100">
-          <CheckCircle2 className="w-10 h-10 text-neutral-900" />
+        <div className="w-20 h-20 bg-brand-50 rounded-full flex items-center justify-center border-4 border-brand-100">
+          <CheckCircle2 className="w-10 h-10 text-brand-600" />
         </div>
       </div>
       
@@ -28,7 +37,7 @@ export default function Confirmation() {
         <p className="text-neutral-500 text-sm">Estetyczne potwierdzenie e-mail zostało wysłane.</p>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-neutral-200 p-6 sm:p-8 space-y-6 text-left">
+      <div className="bg-white rounded-2xl shadow-sm border border-brand-100 p-6 sm:p-8 space-y-6 text-left">
         <div>
           <h3 className="text-[11px] font-bold text-neutral-500 uppercase tracking-[0.2em] mb-4">Podsumowanie wizyty</h3>
           <div className="space-y-3 text-sm">
@@ -42,12 +51,12 @@ export default function Confirmation() {
               </div>
           </div>
         </div>
-        
-        <div className="pt-4 border-t border-neutral-100 flex flex-col items-center bg-neutral-50 p-4 rounded-xl text-center space-y-2">
+
+        <div className="pt-4 border-t border-neutral-100 flex flex-col items-center bg-brand-50 p-4 rounded-xl text-center space-y-2">
           <p className="text-xs text-neutral-500">
             Wiadomość e-mail zawiera szczegóły (gdzie i kiedy) oraz specjalny link: <br/><strong className="text-neutral-900">Odwołaj wizytę</strong>.
           </p>
-          <Link to={`/manage/${booking.management_token}`} className="text-xs font-bold text-neutral-900 underline underline-offset-4 hover:text-neutral-600 mt-2 block">
+          <Link to={`/manage/${booking.management_token}`} className="text-xs font-bold text-brand-700 underline underline-offset-4 hover:text-brand-800 mt-2 block">
             [Podgląd] Otwórz zarządzanie wizytą
           </Link>
         </div>

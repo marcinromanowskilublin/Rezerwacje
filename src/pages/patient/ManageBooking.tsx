@@ -63,10 +63,10 @@ export default function ManageBooking() {
         </p>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-neutral-200 p-6 sm:p-8 space-y-6">
+      <div className="bg-white rounded-2xl shadow-sm border border-brand-100 p-6 sm:p-8 space-y-6">
         <div>
           <p className="text-[11px] uppercase font-bold text-neutral-500 mb-1 tracking-widest">Status</p>
-          <div className="inline-flex items-center px-3 py-1 rounded-xl text-[10px] font-bold bg-neutral-100 text-neutral-900 uppercase tracking-wider">
+          <div className={`inline-flex items-center px-3 py-1 rounded-xl text-[10px] font-bold uppercase tracking-wider ${isCancelled ? 'bg-neutral-100 text-neutral-900' : 'bg-brand-50 text-brand-800'}`}>
             {booking.status.replace('_', ' ')}
           </div>
         </div>
@@ -94,7 +94,7 @@ export default function ManageBooking() {
       </div>
       
       <div className="text-center">
-        <Link to="/" className="text-xs font-bold text-neutral-900 uppercase tracking-widest hover:text-neutral-600 underline underline-offset-4">Wróć na stronę główną</Link>
+        <Link to="/" className="text-xs font-bold text-brand-700 uppercase tracking-widest hover:text-brand-800 underline underline-offset-4">Wróć na stronę główną</Link>
       </div>
     </div>
   );

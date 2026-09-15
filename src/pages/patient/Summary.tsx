@@ -9,7 +9,7 @@ import { bookingApi } from '../../services/bookingApi';
 import { mockPaymentProvider } from '../../providers/PaymentProvider';
 
 export default function Summary() {
-  const { state, reset } = useBooking();
+  const { state } = useBooking();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<string>('blik');
@@ -48,7 +48,6 @@ export default function Summary() {
       }
 
       navigate('/confirmation', { state: { booking } });
-      reset();
     } catch (err: any) {
       setError(err.message || "Wystąpił błąd podczas rezerwacji.");
       setLoading(false);
@@ -65,7 +64,7 @@ export default function Summary() {
         <p className="text-neutral-500 text-sm">Sprawdź dane i zarezerwuj.</p>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-neutral-200 p-6 sm:p-8 space-y-8 flex flex-col">
+      <div className="bg-white rounded-2xl shadow-sm border border-brand-100 p-6 sm:p-8 space-y-8 flex flex-col">
         <div>
           <h3 className="text-[11px] font-bold text-neutral-500 uppercase tracking-[0.2em] mb-4">Szczegóły wizyty</h3>
           <div className="space-y-3 text-sm">
@@ -96,32 +95,32 @@ export default function Summary() {
           <div className="pt-2">
             <p className="text-[11px] uppercase font-bold text-neutral-500 mb-4 tracking-widest text-center">Formy płatności</p>
             <div className="grid gap-3">
-              <button 
+              <button
                 onClick={() => setPaymentMethod('blik')}
-                className={`h-12 rounded-xl border flex items-center justify-center transition-all ${paymentMethod === 'blik' ? 'border-neutral-900 bg-neutral-50 ring-1 ring-neutral-900' : 'border-neutral-200 bg-white hover:border-neutral-900'}`}
+                className={`h-12 rounded-xl border flex items-center justify-center transition-all ${paymentMethod === 'blik' ? 'border-brand-600 bg-brand-50 ring-1 ring-brand-600' : 'border-neutral-200 bg-white hover:border-brand-400'}`}
               >
                 <div className="font-bold text-neutral-900 text-sm">BLIK</div>
               </button>
-              
+
               <div className="grid grid-cols-2 gap-3">
-                <button 
+                <button
                   onClick={() => setPaymentMethod('transfer')}
-                  className={`h-12 rounded-xl border flex items-center justify-center transition-all ${paymentMethod === 'transfer' ? 'border-neutral-900 bg-neutral-50 ring-1 ring-neutral-900' : 'border-neutral-200 bg-white hover:border-neutral-900'}`}
+                  className={`h-12 rounded-xl border flex items-center justify-center transition-all ${paymentMethod === 'transfer' ? 'border-brand-600 bg-brand-50 ring-1 ring-brand-600' : 'border-neutral-200 bg-white hover:border-brand-400'}`}
                 >
                   <span className="font-bold text-[11px] uppercase tracking-wider text-neutral-900">Przelew</span>
                 </button>
-                <button 
+                <button
                   onClick={() => setPaymentMethod('card')}
-                  className={`h-12 rounded-xl border flex items-center justify-center transition-all ${paymentMethod === 'card' ? 'border-neutral-900 bg-neutral-50 ring-1 ring-neutral-900' : 'border-neutral-200 bg-white hover:border-neutral-900'}`}
+                  className={`h-12 rounded-xl border flex items-center justify-center transition-all ${paymentMethod === 'card' ? 'border-brand-600 bg-brand-50 ring-1 ring-brand-600' : 'border-neutral-200 bg-white hover:border-brand-400'}`}
                 >
                   <span className="font-bold text-[11px] uppercase tracking-wider text-neutral-900">Karta</span>
                 </button>
               </div>
 
               {policy === 'optional' && (
-                <button 
+                <button
                   onClick={() => setPaymentMethod('later')}
-                  className={`h-12 rounded-xl border flex items-center justify-center mt-2 transition-all ${paymentMethod === 'later' ? 'border-neutral-900 bg-neutral-50 ring-1 ring-neutral-900' : 'border-neutral-200 bg-neutral-50 hover:border-neutral-900'}`}
+                  className={`h-12 rounded-xl border flex items-center justify-center mt-2 transition-all ${paymentMethod === 'later' ? 'border-brand-600 bg-brand-50 ring-1 ring-brand-600' : 'border-neutral-200 bg-neutral-50 hover:border-brand-400'}`}
                 >
                   <span className="font-bold text-[11px] uppercase tracking-wider text-neutral-500">Zapłacę później</span>
                 </button>

@@ -74,18 +74,18 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-neutral-200 overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-sm border border-brand-100 overflow-hidden">
         {loading ? (
           <div className="p-8 text-center text-neutral-500">Wczytywanie...</div>
         ) : bookings.length === 0 ? (
           <div className="p-8 text-center text-neutral-500">Brak wizyt na dzisiaj.</div>
         ) : (
-          <div className="divide-y divide-neutral-200">
+          <div className="divide-y divide-brand-100">
             {bookings.map(b => (
-              <div key={b.id} className="p-6 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center hover:bg-neutral-50 transition-colors">
+              <div key={b.id} className="p-6 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center hover:bg-brand-50/50 transition-colors">
                 <div className="space-y-1 w-full">
                   <div className="flex items-center gap-4">
-                    <span className="font-bold text-lg text-neutral-900 w-16 shrink-0">{b.start_time}</span>
+                    <span className="font-bold text-lg text-brand-700 w-16 shrink-0">{b.start_time}</span>
                     <span className="font-medium text-neutral-900">{b.patient_name}</span>
                   </div>
                   <div className="flex flex-wrap items-center gap-3 text-xs text-neutral-500 md:pl-20">

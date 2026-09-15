@@ -96,18 +96,18 @@ export function AdminAssistant({ onSimulatedAction }: { onSimulatedAction: (acti
 
   if (!isOpen) {
     return (
-      <button 
+      <button
         onClick={() => setIsOpen(true)}
-        className="w-full flex items-center justify-between p-4 bg-white border border-neutral-200 rounded-xl hover:border-neutral-900 transition-colors shadow-sm group"
+        className="w-full flex items-center justify-between p-4 bg-white border border-brand-100 rounded-xl hover:border-brand-400 transition-colors shadow-sm group"
       >
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-neutral-100 flex items-center justify-center text-neutral-900">
+          <div className="w-8 h-8 rounded-lg bg-brand-50 flex items-center justify-center text-brand-700">
             <Sparkles className="w-4 h-4" />
           </div>
           <span className="font-medium text-sm text-neutral-900">Inteligentny Asystent</span>
           <span className="text-xs text-neutral-500 hidden sm:inline-block">Opisz co chcesz zrobić...</span>
         </div>
-        <div className="flex items-center gap-2 text-neutral-400 group-hover:text-neutral-900 transition-colors">
+        <div className="flex items-center gap-2 text-neutral-400 group-hover:text-brand-700 transition-colors">
           <Mic className="w-4 h-4" />
         </div>
       </button>
@@ -115,13 +115,13 @@ export function AdminAssistant({ onSimulatedAction }: { onSimulatedAction: (acti
   }
 
   return (
-    <div className="bg-white border border-neutral-200 rounded-xl p-4 sm:p-6 shadow-sm space-y-4 relative">
+    <div className="bg-white border border-brand-100 rounded-xl p-4 sm:p-6 shadow-sm space-y-4 relative">
       <button onClick={() => setIsOpen(false)} className="absolute top-4 right-4 text-neutral-400 hover:text-neutral-900">
         <X className="w-5 h-5" />
       </button>
-      
+
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-neutral-900 flex items-center justify-center text-white">
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center text-white">
           <Bot className="w-5 h-5" />
         </div>
         <div>
@@ -137,7 +137,7 @@ export function AdminAssistant({ onSimulatedAction }: { onSimulatedAction: (acti
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder="Napisz np. 'Zablokuj wtorek' lub użyj mikrofonu..."
-            className="w-full h-12 pl-4 pr-12 rounded-xl border border-neutral-200 bg-neutral-50 text-neutral-900 focus:bg-white focus:border-neutral-900 outline-none transition-all text-sm"
+            className="w-full h-12 pl-4 pr-12 rounded-xl border border-neutral-200 bg-neutral-50 text-neutral-900 focus:bg-white focus:border-brand-600 outline-none transition-all text-sm"
             disabled={isProcessing}
           />
           {recognitionRef.current && (
@@ -157,8 +157,8 @@ export function AdminAssistant({ onSimulatedAction }: { onSimulatedAction: (acti
       </form>
 
       {feedback && (
-        <div className="p-3 bg-neutral-50 border border-neutral-100 rounded-lg flex gap-3 text-sm animate-in fade-in zoom-in duration-300">
-          <Sparkles className="w-4 h-4 text-neutral-900 shrink-0 mt-0.5" />
+        <div className="p-3 bg-brand-50 border border-brand-100 rounded-lg flex gap-3 text-sm animate-in fade-in zoom-in duration-300">
+          <Sparkles className="w-4 h-4 text-brand-700 shrink-0 mt-0.5" />
           <p className="text-neutral-600 leading-relaxed">{feedback}</p>
         </div>
       )}

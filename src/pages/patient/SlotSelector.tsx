@@ -47,32 +47,28 @@ export default function SlotSelector() {
         </p>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-neutral-200 p-6 sm:p-8 space-y-6">
-        <div>
-          <p className="text-[11px] uppercase font-bold text-neutral-500 mb-4 tracking-widest">Krok 3: Godzina</p>
-          
-          {loading ? (
-            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 animate-pulse">
-              {[1,2,3,4,5,6].map(i => <div key={i} className="h-10 bg-neutral-50 rounded-xl border border-neutral-200"></div>)}
-            </div>
-          ) : slots.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-neutral-500 text-sm">Brak dostępnych godzin w tym dniu.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-              {slots.map(time => (
-                <button
-                  key={time}
-                  onClick={() => handleSelect(time)}
-                  className="py-3 px-2 border border-neutral-200 rounded-xl text-center text-xs font-medium hover:border-neutral-900 hover:bg-neutral-50 hover:text-neutral-900 cursor-pointer transition-all text-neutral-900"
-                >
-                  {time}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+      <div className="bg-white rounded-2xl shadow-sm border border-brand-100 p-6 sm:p-8">
+        {loading ? (
+          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 animate-pulse">
+            {[1,2,3,4,5,6].map(i => <div key={i} className="h-10 bg-neutral-50 rounded-xl border border-neutral-200"></div>)}
+          </div>
+        ) : slots.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-neutral-500 text-sm">Brak dostępnych godzin w tym dniu.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+            {slots.map(time => (
+              <button
+                key={time}
+                onClick={() => handleSelect(time)}
+                className="py-3 px-2 border border-neutral-200 rounded-xl text-center text-xs font-medium hover:border-brand-600 hover:bg-brand-50 hover:text-brand-700 cursor-pointer transition-all text-neutral-900"
+              >
+                {time}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

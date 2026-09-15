@@ -9,15 +9,15 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-medium tracking-wide transition-all focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-900 disabled:pointer-events-none disabled:opacity-50",
+  "inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-medium tracking-wide transition-all focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand-600 disabled:pointer-events-none disabled:opacity-50",
   {
     variants: {
       variant: {
-        default: "bg-neutral-900 text-white hover:bg-neutral-800 shadow-sm",
-        outline: "border border-neutral-200 bg-transparent hover:bg-neutral-100 text-neutral-900",
-        secondary: "bg-neutral-100 text-neutral-900 hover:bg-neutral-200",
-        ghost: "hover:bg-neutral-100 text-neutral-900",
-        link: "text-neutral-900 underline-offset-4 hover:underline",
+        default: "bg-brand-600 text-white hover:bg-brand-700 shadow-sm shadow-brand-900/10",
+        outline: "border border-neutral-200 bg-transparent hover:bg-brand-50 hover:border-brand-300 text-neutral-900",
+        secondary: "bg-brand-50 text-brand-800 hover:bg-brand-100",
+        ghost: "hover:bg-brand-50 text-neutral-900",
+        link: "text-brand-700 underline-offset-4 hover:underline",
       },
       size: {
         default: "h-12 px-6 py-2",
