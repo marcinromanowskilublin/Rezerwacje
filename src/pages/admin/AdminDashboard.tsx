@@ -65,7 +65,7 @@ export default function AdminDashboard() {
 
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-light text-neutral-900 mb-1">Terminarz</h1>
+          <h1 className="font-display text-3xl sm:text-4xl text-ink mb-1">Terminarz</h1>
           <p className="text-neutral-500 text-sm capitalize">{format(startOfToday(), 'EEEE, d MMMM yyyy', { locale: pl })}</p>
         </div>
         <div className="flex gap-2">
@@ -74,27 +74,27 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-brand-100 overflow-hidden">
+      <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-[0_12px_36px_-18px_rgba(28,33,29,0.15)] border border-brand-900/[0.06] overflow-hidden">
         {loading ? (
           <div className="p-8 text-center text-neutral-500">Wczytywanie...</div>
         ) : bookings.length === 0 ? (
           <div className="p-8 text-center text-neutral-500">Brak wizyt na dzisiaj.</div>
         ) : (
-          <div className="divide-y divide-brand-100">
+          <div className="divide-y divide-brand-900/[0.06]">
             {bookings.map(b => (
               <div key={b.id} className="p-6 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center hover:bg-brand-50/50 transition-colors">
                 <div className="space-y-1 w-full">
                   <div className="flex items-center gap-4">
-                    <span className="font-bold text-lg text-brand-700 w-16 shrink-0">{b.start_time}</span>
-                    <span className="font-medium text-neutral-900">{b.patient_name}</span>
+                    <span className="font-display text-lg text-brand-700 w-16 shrink-0">{b.start_time}</span>
+                    <span className="font-medium text-ink">{b.patient_name}</span>
                   </div>
                   <div className="flex flex-wrap items-center gap-3 text-xs text-neutral-500 md:pl-20">
                     <span>{b.patient_phone}</span>
                     <span className="hidden md:inline">•</span>
-                    <select 
-                      value={b.status} 
+                    <select
+                      value={b.status}
                       onChange={(e) => updateStatus(b.id, e.target.value as BookingStatus)}
-                      className="bg-neutral-100 border border-neutral-200 rounded-md px-2 py-1 font-medium capitalize outline-none cursor-pointer text-neutral-900"
+                      className="bg-neutral-100 border border-neutral-200 rounded-full px-3 py-1 font-medium capitalize outline-none cursor-pointer text-ink"
                     >
                       <option value="pending">Oczekująca</option>
                       <option value="confirmed">Potwierdzona</option>

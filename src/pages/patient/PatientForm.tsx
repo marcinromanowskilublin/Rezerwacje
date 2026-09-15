@@ -33,14 +33,14 @@ export default function PatientForm() {
   return (
     <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-md mx-auto w-full">
       <div className="text-center relative">
-        <button onClick={() => navigate(-1)} className="absolute left-0 top-1/2 -translate-y-1/2 text-sm text-neutral-500 hover:text-neutral-900 inline-flex items-center gap-1 transition-colors">
+        <button onClick={() => navigate(-1)} className="absolute left-0 top-1/2 -translate-y-1/2 text-sm text-neutral-500 hover:text-brand-700 inline-flex items-center gap-1 transition-colors">
           <ChevronLeft className="w-5 h-5" />
         </button>
-        <h1 className="text-3xl font-light text-neutral-900 mb-2">Twoje dane</h1>
+        <h1 className="font-display text-3xl sm:text-4xl text-ink mb-2">Twoje dane</h1>
         <p className="text-neutral-500 text-sm">Wprowadź dane kontaktowe.</p>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-brand-100 p-6 sm:p-8">
+      <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-[0_12px_36px_-18px_rgba(28,33,29,0.15)] border border-brand-900/[0.06] p-7 sm:p-9">
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="space-y-4">
            <div>
@@ -51,7 +51,7 @@ export default function PatientForm() {
                required
                value={formData.name}
                onChange={e => setFormData({ ...formData, name: e.target.value })}
-               className="w-full h-12 px-4 rounded-xl border border-neutral-200 bg-white text-neutral-900 focus:bg-brand-50 focus:border-brand-600 focus:ring-1 focus:ring-brand-600 outline-none transition-all text-sm"
+               className="w-full h-12 px-4 rounded-2xl border border-neutral-200 bg-white text-ink focus:bg-brand-50 focus:border-brand-600 focus:ring-2 focus:ring-brand-500/20 outline-none transition-all text-sm"
              />
            </div>
 
@@ -69,7 +69,7 @@ export default function PatientForm() {
                required
                value={formData.email}
                onChange={e => setFormData({ ...formData, email: e.target.value })}
-               className="w-full h-12 px-4 rounded-xl border border-neutral-200 bg-white text-neutral-900 focus:bg-brand-50 focus:border-brand-600 focus:ring-1 focus:ring-brand-600 outline-none transition-all text-sm"
+               className="w-full h-12 px-4 rounded-2xl border border-neutral-200 bg-white text-ink focus:bg-brand-50 focus:border-brand-600 focus:ring-2 focus:ring-brand-500/20 outline-none transition-all text-sm"
              />
            </div>
            <div>
@@ -80,7 +80,7 @@ export default function PatientForm() {
                required
                value={formData.phone}
                onChange={e => setFormData({ ...formData, phone: e.target.value })}
-               className="w-full h-12 px-4 rounded-xl border border-neutral-200 bg-white text-neutral-900 focus:bg-brand-50 focus:border-brand-600 focus:ring-1 focus:ring-brand-600 outline-none transition-all text-sm"
+               className="w-full h-12 px-4 rounded-2xl border border-neutral-200 bg-white text-ink focus:bg-brand-50 focus:border-brand-600 focus:ring-2 focus:ring-brand-500/20 outline-none transition-all text-sm"
              />
            </div>
          </div>

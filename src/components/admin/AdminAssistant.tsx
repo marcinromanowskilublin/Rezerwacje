@@ -98,13 +98,13 @@ export function AdminAssistant({ onSimulatedAction }: { onSimulatedAction: (acti
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="w-full flex items-center justify-between p-4 bg-white border border-brand-100 rounded-xl hover:border-brand-400 transition-colors shadow-sm group"
+        className="w-full flex items-center justify-between p-4 bg-white/80 backdrop-blur-sm border border-brand-900/[0.06] rounded-2xl hover:border-brand-400 transition-colors shadow-[0_8px_24px_-14px_rgba(28,33,29,0.2)] group"
       >
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-brand-50 flex items-center justify-center text-brand-700">
+          <div className="w-8 h-8 rounded-xl bg-brand-50 flex items-center justify-center text-brand-700">
             <Sparkles className="w-4 h-4" />
           </div>
-          <span className="font-medium text-sm text-neutral-900">Inteligentny Asystent</span>
+          <span className="font-medium text-sm text-ink">Inteligentny Asystent</span>
           <span className="text-xs text-neutral-500 hidden sm:inline-block">Opisz co chcesz zrobić...</span>
         </div>
         <div className="flex items-center gap-2 text-neutral-400 group-hover:text-brand-700 transition-colors">
@@ -115,17 +115,17 @@ export function AdminAssistant({ onSimulatedAction }: { onSimulatedAction: (acti
   }
 
   return (
-    <div className="bg-white border border-brand-100 rounded-xl p-4 sm:p-6 shadow-sm space-y-4 relative">
-      <button onClick={() => setIsOpen(false)} className="absolute top-4 right-4 text-neutral-400 hover:text-neutral-900">
+    <div className="bg-white/80 backdrop-blur-sm border border-brand-900/[0.06] rounded-2xl p-4 sm:p-6 shadow-[0_8px_24px_-14px_rgba(28,33,29,0.2)] space-y-4 relative">
+      <button onClick={() => setIsOpen(false)} className="absolute top-4 right-4 text-neutral-400 hover:text-ink">
         <X className="w-5 h-5" />
       </button>
 
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center text-white">
+        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-brand-500 to-brand-800 flex items-center justify-center text-white shadow-[0_6px_16px_-4px_rgba(26,71,54,0.45)]">
           <Bot className="w-5 h-5" />
         </div>
         <div>
-          <h3 className="font-bold text-sm text-neutral-900">Asystent AI (Demo)</h3>
+          <h3 className="font-display text-base text-ink">Asystent AI (Demo)</h3>
           <p className="text-xs text-neutral-500">Zarządzaj kalendarzem za pomocą głosu i tekstu</p>
         </div>
       </div>
@@ -137,7 +137,7 @@ export function AdminAssistant({ onSimulatedAction }: { onSimulatedAction: (acti
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder="Napisz np. 'Zablokuj wtorek' lub użyj mikrofonu..."
-            className="w-full h-12 pl-4 pr-12 rounded-xl border border-neutral-200 bg-neutral-50 text-neutral-900 focus:bg-white focus:border-brand-600 outline-none transition-all text-sm"
+            className="w-full h-12 pl-4 pr-12 rounded-2xl border border-neutral-200 bg-neutral-50 text-ink focus:bg-white focus:border-brand-600 outline-none transition-all text-sm"
             disabled={isProcessing}
           />
           {recognitionRef.current && (

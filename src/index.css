@@ -11,4 +11,11 @@
   --color-brand-700: #256d4c;
   --color-brand-800: #1f5740;
   --color-brand-900: #1a4736;
+  --color-brand-950: #123328;
+
+  --color-cream: #fbfaf6;
+  --color-cream-100: #f5f2ea;
+  --color-ink: #1c211d;
+
+  --font-display: "Fraunces", "Georgia", serif;
 }

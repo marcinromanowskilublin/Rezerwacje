@@ -57,36 +57,36 @@ export default function Summary() {
   return (
     <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-md mx-auto w-full">
       <div className="text-center relative">
-        <button onClick={() => navigate(-1)} className="absolute left-0 top-1/2 -translate-y-1/2 text-sm text-neutral-500 hover:text-neutral-900 inline-flex items-center gap-1 transition-colors">
+        <button onClick={() => navigate(-1)} className="absolute left-0 top-1/2 -translate-y-1/2 text-sm text-neutral-500 hover:text-brand-700 inline-flex items-center gap-1 transition-colors">
           <ChevronLeft className="w-5 h-5" />
         </button>
-        <h1 className="text-3xl font-light text-neutral-900 mb-2">Podsumowanie</h1>
+        <h1 className="font-display text-3xl sm:text-4xl text-ink mb-2">Podsumowanie</h1>
         <p className="text-neutral-500 text-sm">Sprawdź dane i zarezerwuj.</p>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-brand-100 p-6 sm:p-8 space-y-8 flex flex-col">
+      <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-[0_12px_36px_-18px_rgba(28,33,29,0.15)] border border-brand-900/[0.06] p-7 sm:p-9 space-y-8 flex flex-col">
         <div>
           <h3 className="text-[11px] font-bold text-neutral-500 uppercase tracking-[0.2em] mb-4">Szczegóły wizyty</h3>
           <div className="space-y-3 text-sm">
-            <div className="flex justify-between py-2 border-b border-neutral-200">
+            <div className="flex justify-between py-2 border-b border-neutral-200/70">
               <span className="text-neutral-500 font-light">Data</span>
-              <span className="font-medium text-right capitalize text-neutral-900">{format(dateObj, 'd MMMM yyyy', { locale: pl })}</span>
+              <span className="font-medium text-right capitalize text-ink">{format(dateObj, 'd MMMM yyyy', { locale: pl })}</span>
             </div>
-            <div className="flex justify-between py-2 border-b border-neutral-200">
+            <div className="flex justify-between py-2 border-b border-neutral-200/70">
               <span className="text-neutral-500 font-light">Godzina</span>
-              <span className="font-medium text-right text-neutral-900">{state.time}</span>
+              <span className="font-medium text-right text-ink">{state.time}</span>
             </div>
-            <div className="flex justify-between py-2 border-b border-neutral-200">
+            <div className="flex justify-between py-2 border-b border-neutral-200/70">
               <span className="text-neutral-500 font-light">Usługa</span>
-              <span className="font-medium text-right text-neutral-900">{state.visitType.name}</span>
+              <span className="font-medium text-right text-ink">{state.visitType.name}</span>
             </div>
-            <div className="flex justify-between py-2 border-b border-neutral-200">
+            <div className="flex justify-between py-2 border-b border-neutral-200/70">
               <span className="text-neutral-500 font-light">Pacjent</span>
-              <span className="font-medium text-right text-neutral-900">{state.patient.name}</span>
+              <span className="font-medium text-right text-ink">{state.patient.name}</span>
             </div>
             <div className="flex justify-between py-2 mt-4">
-              <span className="text-lg font-light text-neutral-900">Do zapłaty</span>
-              <span className="text-lg font-bold text-neutral-900 uppercase">{state.visitType.price} {state.visitType.currency}</span>
+              <span className="font-display text-xl text-ink">Do zapłaty</span>
+              <span className="font-display text-xl text-brand-700">{state.visitType.price} {state.visitType.currency}</span>
             </div>
           </div>
         </div>
@@ -97,30 +97,30 @@ export default function Summary() {
             <div className="grid gap-3">
               <button
                 onClick={() => setPaymentMethod('blik')}
-                className={`h-12 rounded-xl border flex items-center justify-center transition-all ${paymentMethod === 'blik' ? 'border-brand-600 bg-brand-50 ring-1 ring-brand-600' : 'border-neutral-200 bg-white hover:border-brand-400'}`}
+                className={`h-12 rounded-2xl border flex items-center justify-center transition-all ${paymentMethod === 'blik' ? 'border-brand-600 bg-brand-50 shadow-[0_0_0_3px_rgba(47,138,96,0.15)]' : 'border-neutral-200/80 bg-white hover:border-brand-400'}`}
               >
-                <div className="font-bold text-neutral-900 text-sm">BLIK</div>
+                <div className="font-bold text-ink text-sm">BLIK</div>
               </button>
 
               <div className="grid grid-cols-2 gap-3">
                 <button
                   onClick={() => setPaymentMethod('transfer')}
-                  className={`h-12 rounded-xl border flex items-center justify-center transition-all ${paymentMethod === 'transfer' ? 'border-brand-600 bg-brand-50 ring-1 ring-brand-600' : 'border-neutral-200 bg-white hover:border-brand-400'}`}
+                  className={`h-12 rounded-2xl border flex items-center justify-center transition-all ${paymentMethod === 'transfer' ? 'border-brand-600 bg-brand-50 shadow-[0_0_0_3px_rgba(47,138,96,0.15)]' : 'border-neutral-200/80 bg-white hover:border-brand-400'}`}
                 >
-                  <span className="font-bold text-[11px] uppercase tracking-wider text-neutral-900">Przelew</span>
+                  <span className="font-bold text-[11px] uppercase tracking-wider text-ink">Przelew</span>
                 </button>
                 <button
                   onClick={() => setPaymentMethod('card')}
-                  className={`h-12 rounded-xl border flex items-center justify-center transition-all ${paymentMethod === 'card' ? 'border-brand-600 bg-brand-50 ring-1 ring-brand-600' : 'border-neutral-200 bg-white hover:border-brand-400'}`}
+                  className={`h-12 rounded-2xl border flex items-center justify-center transition-all ${paymentMethod === 'card' ? 'border-brand-600 bg-brand-50 shadow-[0_0_0_3px_rgba(47,138,96,0.15)]' : 'border-neutral-200/80 bg-white hover:border-brand-400'}`}
                 >
-                  <span className="font-bold text-[11px] uppercase tracking-wider text-neutral-900">Karta</span>
+                  <span className="font-bold text-[11px] uppercase tracking-wider text-ink">Karta</span>
                 </button>
               </div>
 
               {policy === 'optional' && (
                 <button
                   onClick={() => setPaymentMethod('later')}
-                  className={`h-12 rounded-xl border flex items-center justify-center mt-2 transition-all ${paymentMethod === 'later' ? 'border-brand-600 bg-brand-50 ring-1 ring-brand-600' : 'border-neutral-200 bg-neutral-50 hover:border-brand-400'}`}
+                  className={`h-12 rounded-2xl border flex items-center justify-center mt-2 transition-all ${paymentMethod === 'later' ? 'border-brand-600 bg-brand-50 shadow-[0_0_0_3px_rgba(47,138,96,0.15)]' : 'border-neutral-200/80 bg-neutral-50 hover:border-brand-400'}`}
                 >
                   <span className="font-bold text-[11px] uppercase tracking-wider text-neutral-500">Zapłacę później</span>
                 </button>

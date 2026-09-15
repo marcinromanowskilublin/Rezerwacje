@@ -11,16 +11,16 @@ export default function BookingFlowShell() {
   const isConfirmation = relativePath === '/confirmation';
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-brand-50 to-white font-sans text-neutral-900 selection:bg-brand-200 flex flex-col">
-      <header className="px-4 md:px-8 pt-4 pb-2 sticky top-0 z-10 bg-gradient-to-b from-brand-50 via-brand-50/95 to-transparent">
+    <div className="min-h-screen bg-gradient-to-b from-brand-50 via-cream to-cream font-sans text-ink selection:bg-brand-200 flex flex-col">
+      <header className="px-4 md:px-8 pt-5 pb-3 sticky top-0 z-10 bg-cream/70 backdrop-blur-md">
         <div className="max-w-md mx-auto w-full flex items-center gap-3">
           {!isConfirmation && (
             <div className="flex-1 flex gap-1.5" aria-hidden="true">
               {STEPS.slice(0, 5).map((step, i) => (
                 <div
                   key={step}
-                  className={`h-1.5 flex-1 rounded-full transition-colors ${
-                    i <= currentStep ? 'bg-brand-600' : 'bg-brand-100'
+                  className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${
+                    i <= currentStep ? 'bg-brand-600 shadow-[0_0_8px_rgba(47,138,96,0.5)]' : 'bg-brand-900/10'
                   }`}
                 />
               ))}
@@ -29,7 +29,7 @@ export default function BookingFlowShell() {
           {isConfirmation && <div className="flex-1" />}
           <Link
             to="/"
-            className="w-9 h-9 shrink-0 rounded-xl bg-white border border-brand-100 shadow-sm flex items-center justify-center text-neutral-500 hover:text-brand-700 hover:border-brand-300 transition-colors"
+            className="w-10 h-10 shrink-0 rounded-full bg-white/80 border border-brand-900/[0.06] shadow-[0_4px_14px_-4px_rgba(26,71,54,0.2)] flex items-center justify-center text-neutral-500 hover:text-brand-700 hover:border-brand-300 transition-colors"
             aria-label="Zamknij i wróć na stronę główną"
           >
             <X className="w-4 h-4" />
