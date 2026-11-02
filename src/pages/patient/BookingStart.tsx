@@ -62,20 +62,10 @@ export default function BookingStart() {
           {site.officeDisplayName}
         </h1>
         <p className="mt-1.5 text-sm text-neutral-500">{site.officeTitle}</p>
-        <svg
-          viewBox="0 0 280 22"
+        <span
           aria-hidden="true"
-          className="mx-auto mt-3 h-[22px] w-[min(72vw,280px)] overflow-visible"
-          fill="none"
-        >
-          <path
-            d="M3 16.5H225C244 16.5 248 14.5 257 7.5C262 3.7 268 3.5 274 3.5"
-            stroke="#8da49f"
-            strokeWidth="1"
-            strokeLinecap="round"
-          />
-          <circle cx="276.5" cy="3.5" r="2.75" fill="#e6816d" />
-        </svg>
+          className="mx-auto mt-4 block h-px w-[min(72vw,280px)] bg-[#8da49f]/55"
+        />
       </section>
 
       <section
