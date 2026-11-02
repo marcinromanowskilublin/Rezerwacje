@@ -1,1 +1,18 @@
 @import "tailwindcss";
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  margin: 0;
+  background: #f4f3ef;
+}
+
+.site-paper {
+  background-color: #f4f3ef;
+  background-image:
+    radial-gradient(circle at 14% 24%, rgba(230, 129, 109, 0.035), transparent 23rem),
+    radial-gradient(circle at 84% 34%, rgba(31, 92, 81, 0.045), transparent 27rem),
+    linear-gradient(rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.16));
+}

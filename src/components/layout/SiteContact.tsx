@@ -15,7 +15,7 @@ export default function SiteContact() {
   return (
     <aside
       aria-label="Kontakt przez WhatsApp"
-      className="rounded-2xl border border-[#e4e2dc] bg-white px-5 py-4 sm:flex sm:items-center sm:justify-between sm:gap-5"
+      className="rounded-[1.2rem] border border-[#e0ddd5] bg-white/95 px-5 py-4 shadow-[0_18px_50px_rgba(31,72,63,0.05)] backdrop-blur-sm sm:flex sm:items-center sm:justify-between sm:gap-5"
     >
       <div className="mb-3 sm:mb-0">
         <p className="text-sm font-medium text-[#007865]">WhatsApp</p>
