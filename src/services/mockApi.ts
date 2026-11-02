@@ -20,7 +20,7 @@ const defaultVisitTypes: VisitType[] = [
     id: 'vt_1',
     name: 'Pierwsza konsultacja',
     description: 'Kompleksowa ocena stanu zdrowia, postawienie diagnozy i zaplanowanie leczenia.',
-    duration_minutes: 60,
+    duration_minutes: 45,
     price: 275,
     currency: 'PLN',
     payment_policy: 'required',
