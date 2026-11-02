@@ -62,11 +62,20 @@ export default function BookingStart() {
           {site.officeDisplayName}
         </h1>
         <p className="mt-1.5 text-sm text-neutral-500">{site.officeTitle}</p>
-        <div className="mt-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[11px] text-[#5f746f] sm:text-xs">
-          <span>Niezależny gabinet · wspólna sieć specjalistów</span>
-          <span className="hidden h-1.5 w-1.5 rounded-full bg-[#e6816d] sm:block" aria-hidden="true" />
-          <span className="text-neutral-500">Na swoim. Nie samemu.</span>
-        </div>
+        <svg
+          viewBox="0 0 280 22"
+          aria-hidden="true"
+          className="mx-auto mt-3 h-[22px] w-[min(72vw,280px)] overflow-visible"
+          fill="none"
+        >
+          <path
+            d="M3 16.5H225C244 16.5 248 14.5 257 7.5C262 3.7 268 3.5 274 3.5"
+            stroke="#8da49f"
+            strokeWidth="1"
+            strokeLinecap="round"
+          />
+          <circle cx="276.5" cy="3.5" r="2.75" fill="#e6816d" />
+        </svg>
       </section>
 
       <section
