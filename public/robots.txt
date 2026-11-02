@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /manage/
+Disallow: /rezerwacja/api/
+
+Sitemap: https://marcin-romanowski.pl/sitemap.xml

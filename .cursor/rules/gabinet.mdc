@@ -1,0 +1,27 @@
+---
+description: Nazwa gabinetu i wygląd strony pacjenta
+alwaysApply: true
+---
+
+# Gabinet i strona pacjenta
+
+- Właściciel i nazwa publiczna: **Marcin Romanowski**. Nigdy Myślik-Krowonowski.
+- Domena i publiczny adres rezerwacji: `https://marcin-romanowski.pl/`.
+- Gdy właściciel mówi **„na stronie”**, chodzi zawsze o **to repozytorium** i `https://marcin-romanowski.pl/` — nie o ZnanyLekarz, MyDr ani inną stronę.
+- Stare adresy pod `/rezerwacja/` mają wyłącznie przekierowywać na odpowiadające im ścieżki w domenie głównej.
+- Źródło nazwy w UI: `src/config/site.ts` (`officeName`). W PHP: `office_name` w `config.php`.
+
+## Strona pacjenta zostaje prosta
+
+Widok użytkownika jest już dobry. Nie „ulepszaj” go, nie dokładaj informacji, nie zagęszczaj.
+
+Pacjent widzi tylko:
+- rodzaj wizyty i długość (np. 45 min)
+- cenę: pierwsza konsultacja **275 zł**, kontrolna **250 zł**
+- krótką informację: WhatsApp do wymiany informacji i plików; potwierdzenie rezerwacji na e-mail
+- dzień
+- konkretny slot: `14:30` albo `16:00–16:50`
+
+Pacjent **nie** widzi: odstępu/przerwy, dla kogo jest okno, BLIK-a, zbędnych pól.
+
+Nie używaj pojęcia przerwy/odstępu do liczenia slotów. Grafik ma pokazywać konkretne godziny, np. co 60 minut.

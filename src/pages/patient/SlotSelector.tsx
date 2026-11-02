@@ -5,7 +5,7 @@ import { useBooking } from './BookingContext';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import { ChevronLeft } from 'lucide-react';
-import { Button } from '../../components/ui/Button';
+import { slotRange } from '../../lib/schedule';
 
 export default function SlotSelector() {
   const { state, updateState } = useBooking();
@@ -21,7 +21,11 @@ export default function SlotSelector() {
     setLoading(true);
     bookingApi.getAvailableSlots(state.date, state.visitType.id)
       .then(s => {
-        setSlots(s);
+        setSlots(Array.isArray(s) ? s : []);
+        setLoading(false);
+      })
+      .catch(() => {
+        setSlots([]);
         setLoading(false);
       });
   }, [state.date, state.visitType, navigate]);
@@ -44,10 +48,11 @@ export default function SlotSelector() {
         <h1 className="text-3xl font-light text-neutral-900 mb-2">Wybierz godzinę</h1>
         <p className="text-neutral-500 text-sm capitalize">
           {format(dateObj, 'EEEE, d MMMM yyyy', { locale: pl })}
+          {state.visitType ? ` · ${state.visitType.duration_minutes} min · online` : ''}
         </p>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-neutral-200 p-6 sm:p-8 space-y-6">
+      <div className="space-y-6 rounded-2xl border border-[#e4e2dc] bg-white p-6 sm:p-8">
         <div>
           <p className="text-[11px] uppercase font-bold text-neutral-500 mb-4 tracking-widest">Krok 3: Godzina</p>
           
@@ -60,14 +65,14 @@ export default function SlotSelector() {
               <p className="text-neutral-500 text-sm">Brak dostępnych godzin w tym dniu.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               {slots.map(time => (
                 <button
                   key={time}
                   onClick={() => handleSelect(time)}
-                  className="py-3 px-2 border border-neutral-200 rounded-xl text-center text-xs font-medium hover:border-neutral-900 hover:bg-neutral-50 hover:text-neutral-900 cursor-pointer transition-all text-neutral-900"
+                  className="py-3 px-2 border border-neutral-200 rounded-xl text-center text-sm font-medium hover:border-[#007865] hover:bg-[#e7f4f1] hover:text-[#007865] cursor-pointer transition-all text-neutral-900"
                 >
-                  {time}
+                  {state.visitType ? slotRange(time, state.visitType.duration_minutes) : time}
                 </button>
               ))}
             </div>

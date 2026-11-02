@@ -1,0 +1,27 @@
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteRule ^rezerwacja/?$ https://marcin-romanowski.pl/ [R=301,L]
+  RewriteRule ^rezerwacja/(?!api(?:/|$))(.*)$ https://marcin-romanowski.pl/$1 [R=301,L,NE]
+  RewriteCond %{REQUEST_URI} !^/rezerwacja/api(?:/|$) [NC]
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule . /index.html [L]
+</IfModule>
+
+<IfModule mod_setenvif.c>
+  SetEnvIf Request_URI "^/(admin|manage)(/|$)" noindex_route=1
+</IfModule>
+
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "DENY"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+  Header always set X-Robots-Tag "noindex, nofollow" env=noindex_route
+  Header always set X-Robots-Tag "noindex, nofollow" env=REDIRECT_noindex_route
+  Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'sha256-+XLaAWGR2MePYztWDOdrN94NRRHpYTfl/+GgiCGYb2A='; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+</IfModule>
+
+<Files "index.html">
+  Header set Cache-Control "no-cache"
+</Files>

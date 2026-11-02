@@ -66,7 +66,7 @@ function aistudioMediaPlugin(): Plugin {
 
 export default defineConfig(({ command }) => {
   return {
-    base: command === 'build' ? '/rezerwacja/' : '/',
+    base: '/',
     plugins: [react(), tailwindcss(), aistudioMediaPlugin()],
     resolve: {
       alias: {

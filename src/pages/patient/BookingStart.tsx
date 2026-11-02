@@ -3,11 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { bookingApi } from '../../services/bookingApi';
 import { VisitType } from '../../types';
 import { useBooking } from './BookingContext';
-import { Button } from '../../components/ui/Button';
+import { formatZl, site, visitPriceZl } from '../../config/site';
+import { config } from '../../config/features';
+import SiteContact from '../../components/layout/SiteContact';
 
 export default function BookingStart() {
   const [visitTypes, setVisitTypes] = useState<VisitType[]>([]);
   const [loading, setLoading] = useState(true);
+  const [scheduleOn, setScheduleOn] = useState<boolean | null>(config.API_MODE === 'production' ? null : true);
   const navigate = useNavigate();
   const { updateState } = useBooking();
 
@@ -15,7 +18,22 @@ export default function BookingStart() {
     bookingApi.getVisitTypes().then(types => {
       setVisitTypes(types);
       setLoading(false);
-    });
+    }).catch(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    if (config.API_MODE !== 'production') return;
+    let cancelled = false;
+    bookingApi.getSiteStatus()
+      .then((status) => {
+        if (!cancelled) setScheduleOn(Boolean(status.schedule_enabled));
+      })
+      .catch(() => {
+        if (!cancelled) setScheduleOn(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const handleSelect = (vt: VisitType) => {
@@ -23,39 +41,95 @@ export default function BookingStart() {
     navigate('/day');
   };
 
-  if (loading) {
-    return <div className="animate-pulse flex flex-col space-y-4 mt-8 max-w-md mx-auto w-full">
-      <div className="h-24 bg-neutral-200 rounded-xl w-full opacity-50"></div>
-      <div className="h-24 bg-neutral-200 rounded-xl w-full opacity-50"></div>
-    </div>;
-  }
-
   return (
-    <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-md mx-auto w-full">
-      <div className="text-center">
-        <h1 className="text-3xl font-light text-neutral-900 mb-2">Umów wizytę</h1>
-        <p className="text-neutral-500 text-sm">Wybierz rodzaj konsultacji.</p>
-      </div>
-
-      <div className="bg-white rounded-xl shadow-sm border border-neutral-200 p-6 sm:p-8 space-y-6">
-        <div>
-           <p className="text-[11px] uppercase font-bold text-neutral-500 mb-4 tracking-widest">Krok 1: Rodzaj wizyty</p>
-           <div className="grid gap-3">
-             {visitTypes.map(vt => (
-                <div
-                  key={vt.id}
-                  onClick={() => handleSelect(vt)}
-                  className="flex items-center justify-between p-4 rounded-xl border border-neutral-200 hover:bg-neutral-50 hover:border-neutral-900 cursor-pointer transition-all group"
-                >
-                  <div className="space-y-1 text-left">
-                    <p className="font-medium text-sm text-neutral-900 group-hover:text-neutral-900">{vt.name}</p>
-                    <p className="text-xs text-neutral-500">{vt.duration_minutes} min • {vt.price} {vt.currency}</p>
-                  </div>
-                  <div className="w-5 h-5 rounded-xl border border-neutral-200 group-hover:border-neutral-900"></div>
-                </div>
-             ))}
-           </div>
+    <div className="mx-auto w-full max-w-lg animate-in fade-in slide-in-from-bottom-3 duration-500">
+      <section aria-labelledby="doctor-name" className="text-center">
+        <div className="mx-auto h-[156px] w-[156px] overflow-hidden rounded-full bg-[#ebe8e1] ring-1 ring-[#d8d4cc]">
+          <img
+            src={site.portraitSrc}
+            alt={site.officeName}
+            width={156}
+            height={156}
+            fetchPriority="high"
+            className="h-full w-full object-cover object-top"
+          />
         </div>
+        <h1 id="doctor-name" className="mt-5 text-[1.65rem] font-medium tracking-[-0.03em] text-[#007865] sm:text-[1.85rem]">
+          {site.officeDisplayName}
+        </h1>
+        <p className="mt-1.5 text-sm text-neutral-500">{site.officeTitle}</p>
+      </section>
+
+      <section
+        aria-labelledby="visit-type-heading"
+        className="mt-8 rounded-2xl border border-[#e4e2dc] bg-white p-5 sm:p-6"
+      >
+        <p className="text-[11px] font-medium text-neutral-400">
+          {scheduleOn === false ? 'Wizyty' : 'Umów wizytę'}
+        </p>
+        <h2 id="visit-type-heading" className="mt-1.5 text-xl font-medium tracking-[-0.015em] text-neutral-900">
+          {scheduleOn === false ? 'Rezerwacja online jest teraz wyłączona.' : 'Wybierz rodzaj wizyty'}
+        </h2>
+
+        <div className="mt-6 grid gap-3" aria-busy={loading || scheduleOn === null}>
+          {loading || scheduleOn === null ? (
+            <>
+              <div className="h-[70px] animate-pulse rounded-2xl bg-neutral-100" />
+              <div className="h-[70px] animate-pulse rounded-2xl bg-neutral-100" />
+            </>
+          ) : scheduleOn ? (
+            visitTypes.map(vt => (
+              <button
+                type="button"
+                key={vt.id}
+                onClick={() => handleSelect(vt)}
+                className="group flex w-full items-center justify-between rounded-xl border border-[#e4e2dc] bg-white px-5 py-4 text-left transition-colors hover:border-[#007865] hover:bg-[#f8f7f4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#007865] focus-visible:ring-offset-2"
+              >
+                <span>
+                  <span className="block text-sm font-medium text-neutral-900">{vt.name}</span>
+                  <span className="mt-1 block text-xs text-neutral-500">
+                    {vt.duration_minutes} min · {site.visitModeWord}
+                  </span>
+                </span>
+                <span className="ml-4 flex items-center gap-3">
+                  <span className="text-sm font-medium tabular-nums text-[#007865]">
+                    {formatZl(visitPriceZl(vt.kind, vt.price))}
+                  </span>
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#e7f4f1] text-[#007865] transition-colors group-hover:bg-[#007865] group-hover:text-white">
+                    <svg viewBox="0 0 20 20" aria-hidden="true" className="h-4 w-4" fill="none">
+                      <path d="m7.5 4.5 5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </span>
+                </span>
+              </button>
+            ))
+          ) : (
+            visitTypes.map(vt => (
+              <div
+                key={vt.id}
+                className="flex w-full items-center justify-between rounded-xl border border-[#e4e2dc] bg-white px-5 py-4 text-left"
+              >
+                <span>
+                  <span className="block text-sm font-medium text-neutral-900">{vt.name}</span>
+                  <span className="mt-1 block text-xs text-neutral-500">
+                    {vt.duration_minutes} min · {site.visitModeWord}
+                  </span>
+                </span>
+                <span className="ml-4 text-sm font-medium tabular-nums text-[#007865]">
+                  {formatZl(visitPriceZl(vt.kind, vt.price))}
+                </span>
+              </div>
+            ))
+          )}
+        </div>
+
+        <p className="mt-5 text-xs leading-relaxed text-neutral-500">
+          {site.contactNote} {site.bookingConfirmNote}
+        </p>
+      </section>
+
+      <div className="mt-5">
+        <SiteContact />
       </div>
     </div>
   );

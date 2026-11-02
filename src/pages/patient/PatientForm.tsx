@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useBooking } from './BookingContext';
 import { ChevronLeft } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
@@ -40,7 +40,7 @@ export default function PatientForm() {
         <p className="text-neutral-500 text-sm">Wprowadź dane kontaktowe.</p>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-neutral-200 p-6 sm:p-8 space-y-6">
+      <div className="space-y-6 rounded-2xl border border-[#e4e2dc] bg-white p-6 sm:p-8">
         <div>
            <p className="text-[11px] uppercase font-bold text-neutral-500 mb-4 tracking-widest">Krok 4: Formularz</p>
            <form onSubmit={handleSubmit} className="space-y-5">
@@ -86,6 +86,18 @@ export default function PatientForm() {
                 />
               </div>
             </div>
+
+            <p className="text-xs leading-5 text-neutral-500">
+              Podane dane wykorzystamy wyłącznie do obsługi rezerwacji. Szczegóły znajdziesz w{' '}
+              <Link className="text-neutral-900 underline underline-offset-4" to="/polityka-prywatnosci">
+                Polityce prywatności
+              </Link>{' '}
+              i{' '}
+              <Link className="text-neutral-900 underline underline-offset-4" to="/zasady-rezerwacji">
+                Zasadach rezerwacji
+              </Link>
+              .
+            </p>
 
             <div className="pt-4">
               <Button type="submit" className="w-full h-14" size="lg">Przejdź do podsumowania</Button>

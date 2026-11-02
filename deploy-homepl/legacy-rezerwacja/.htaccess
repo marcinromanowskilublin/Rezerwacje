@@ -1,0 +1,6 @@
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteRule ^api(?:/|$) - [L]
+  RewriteRule ^$ https://marcin-romanowski.pl/ [R=301,L]
+  RewriteRule ^(.+)$ https://marcin-romanowski.pl/$1 [R=301,L,NE]
+</IfModule>

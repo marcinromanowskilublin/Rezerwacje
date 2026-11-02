@@ -23,7 +23,11 @@ export default function DaySelector() {
     setLoading(true);
     bookingApi.getAvailableDays(state.visitType.id, currentMonth.getMonth() + 1, currentMonth.getFullYear())
       .then(days => {
-        setAvailableDays(days);
+        setAvailableDays(Array.isArray(days) ? days : []);
+        setLoading(false);
+      })
+      .catch(() => {
+        setAvailableDays([]);
         setLoading(false);
       });
   }, [currentMonth, state.visitType, navigate]);
@@ -58,10 +62,10 @@ export default function DaySelector() {
           <ChevronLeft className="w-5 h-5" />
         </button>
         <h1 className="text-3xl font-light text-neutral-900 mb-2">Wybierz dzień</h1>
-        <p className="text-neutral-500 text-sm">{state.visitType?.name}</p>
+        <p className="text-neutral-500 text-sm">{state.visitType?.name} · {state.visitType?.duration_minutes} min · online</p>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-neutral-200 p-6 sm:p-8 space-y-8">
+      <div className="space-y-8 rounded-2xl border border-[#e4e2dc] bg-white p-6 sm:p-8">
         <div>
           <p className="text-[11px] uppercase font-bold text-neutral-500 mb-4 tracking-widest">Krok 2: Wybierz termin</p>
           <div className="flex items-center justify-between mb-6">
@@ -102,9 +106,9 @@ export default function DaySelector() {
                   className={cn(
                     "aspect-square flex items-center justify-center rounded-lg text-sm transition-all relative",
                     isAvailable && !isPast
-                      ? "hover:bg-neutral-50 text-neutral-900 font-medium cursor-pointer hover:text-neutral-900"
+                      ? "hover:bg-[#e7f4f1] text-[#007865] font-medium cursor-pointer"
                       : "text-[#374151] cursor-not-allowed",
-                    isToday(day) && !isPast && "after:absolute after:bottom-1 after:w-1 after:h-1 after:bg-[#64A377] after:rounded-xl"
+                    isToday(day) && !isPast && "after:absolute after:bottom-1 after:w-1 after:h-1 after:bg-[#007865] after:rounded-xl"
                   )}
                 >
                   {format(day, 'd')}

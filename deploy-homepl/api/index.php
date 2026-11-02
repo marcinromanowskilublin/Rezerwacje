@@ -1,26 +1,65 @@
 <?php
-header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization");
+declare(strict_types=1);
+
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Admin-Password');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
-    exit();
+    exit;
 }
 
-$request_uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-// Uproszczony router (np. /rezerwacja/api/visit-types -> visit-types.php)
+require_once __DIR__ . '/bootstrap.php';
+require_once __DIR__ . '/backup-bookings.php';
+require_once __DIR__ . '/visit-report.php';
 
-$base_path = '/rezerwacja/api';
-$route = str_replace($base_path, '', $request_uri);
+$api_route = api_route();
 
-if ($route === '/visit-types') {
-    require 'visit-types.php';
-} else if (strpos($route, '/bookings') === 0) {
-    require 'bookings.php';
-} else if (strpos($route, '/availability') === 0) {
-    require 'availability.php';
-} else {
-    http_response_code(404);
-    echo json_encode(["error" => "Not found"]);
+if (
+    strpos($api_route, '/backups/bookings') !== 0
+    && strpos($api_route, '/admin/backups/bookings') !== 0
+) {
+    backup_bookings_maybe_run_silent();
+    visit_report_maybe_run_silent();
 }
+
+if ($api_route === '/site' && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
+    json_response(['schedule_enabled' => schedule_enabled()]);
+}
+
+if (visit_report_handle_route($api_route, $_SERVER['REQUEST_METHOD'] ?? 'GET')) {
+    return;
+}
+
+if ($api_route === '/visit-types' || strpos($api_route, '/admin/visit-types') === 0) {
+    require __DIR__ . '/visit-types.php';
+    return;
+}
+
+if (strpos($api_route, '/availability') === 0 || strpos($api_route, '/admin/availability') === 0) {
+    require __DIR__ . '/availability.php';
+    return;
+}
+
+if ($api_route === '/analytics/view' || $api_route === '/admin/analytics') {
+    require __DIR__ . '/analytics.php';
+    return;
+}
+
+if (strpos($api_route, '/backups/bookings') === 0 || strpos($api_route, '/admin/backups/bookings') === 0) {
+    require __DIR__ . '/backups.php';
+    return;
+}
+
+if (
+    strpos($api_route, '/bookings') === 0
+    || strpos($api_route, '/admin/bookings') === 0
+    || strpos($api_route, '/admin/whatsapp') === 0
+    || $api_route === '/admin/login'
+) {
+    require __DIR__ . '/bookings.php';
+    return;
+}
+
+json_response(['error' => 'Not found'], 404);

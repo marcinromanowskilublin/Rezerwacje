@@ -1,6 +1,6 @@
 {
-  "name": "Rezerwacja Wizyt Psychiatrycznych",
-  "description": "System rezerwacji wizyt dla gabinetu psychiatrycznego z mockowymi płatnościami.",
+  "name": "Psychiatra Lublin — lek. Marcin Romanowski",
+  "description": "Umów wizytę u lek. Marcina Romanowskiego, specjalisty psychiatrii w Lublinie.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

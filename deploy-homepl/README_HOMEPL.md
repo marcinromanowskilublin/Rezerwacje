@@ -9,33 +9,58 @@ Zanim cokolwiek wyślesz na FTP serwera home.pl:
 
 ## 2. Przygotowanie Serwera i Plików 
 1. Zaloguj się na serwer przez FTP lub SSH.
-2. Na serwerze, w swoim głównym katalogu `public_html` (lub wybranej lokalizacji dla domeny), stwórz folder `rezerwacja`.
-3. Z folderu `/dist` (utworzonego w kroku 1) skopiuj WSZYSTKIE pliki i umieść je na serwerze w folderze `rezerwacja/`.
-4. Teraz aplikacja kliencka wyświetla się po wejściu na stronę `https://twoja-domena.pl/rezerwacja/`.
+2. Z folderu `/dist` skopiuj WSZYSTKIE pliki do głównego katalogu domeny.
+3. Plik `.htaccess` z kompilacji zapewnia obsługę tras aplikacji i przekierowanie starych adresów `/rezerwacja/...`.
+4. Aplikacja kliencka wyświetla się bezpośrednio pod adresem `https://marcin-romanowski.pl/`.
 
 ## 3. Instalacja bazy danych (MySQL)
 1. Zaloguj się do panelu home.pl.
 2. Utwórz nową bazę danych MySQL. Zapisz: Nazwę Bazy, Nazwę Użytkownika, Hasło, oraz adres serwera hosta (np. localhost).
 3. Wejdź w menedżer bazy danych (np. phpMyAdmin).
-4. Przejdź do zakładki "Importuj" i wgraj plik `deploy-homepl/database/schema.sql`.
+4. Dla nowej instalacji wgraj plik `deploy-homepl/database/schema.sql`.
+
+### Aktualizacja istniejącej bazy
+Przed migracją wykonaj kopię bazy. Następnie uruchom tylko brakujące migracje:
+1. `deploy-homepl/database/migrate_grafik.sql` — pola grafiku, jeśli nie były wcześniej dodane.
+2. `deploy-homepl/database/migrate_analytics.sql` — anonimowy licznik odsłon.
+3. `deploy-homepl/database/migrate_hardening.sql` — usuwa nadmiarowe pole licznika i naprawia indeks rezerwacji, jeżeli starsza wersja już je utworzyła.
+
+Ponowne wgranie samego `schema.sql` nie aktualizuje struktury istniejących tabel.
 
 ## 4. Konfiguracja Backend'u (PHP)
-1. Utwórz folder `api` obok (lub wewnątrz) zainstalowanego `/rezerwacja/`. Zalecany układ to `https://twoja-domena.pl/rezerwacja/api/`.
+1. Backend pozostaje w folderze `/rezerwacja/api/`, niezależnie od frontendu działającego w domenie głównej.
 2. Z katalogu `deploy-homepl/api` z Twojego lokalnego repozytorium wyślij pliki `.php` na FTP do katalogu `api`.
-3. Skopiuj również `deploy-homepl/config/config.example.php`, nadaj mu nazwę `config.php` i edytuj w nim poprawne dane z Kroku 3 (host bazy, użytkownik, hasło, nazwa bazy).
+3. Skopiuj `deploy-homepl/config/config.example.php` do `rezerwacja/config/config.php` i uzupełnij bazę oraz `admin_password`.
+   Jeśli chcesz wykluczyć własne wejścia z licznika odwiedzin, uzupełnij `analytics_excluded_ips` (np. Twój publiczny IP).
+4. Wgraj też `deploy-homepl/api/.htaccess`, żeby adresy `/rezerwacja/api/visit-types` szły do `index.php`.
 
-## 5. Przełączenie aplikacji na tryb Produkcyjny
+## 5. Backup zapisów co 6 godzin
+System zapisuje kopię tabeli `bookings` automatycznie (co 6h) przy normalnym ruchu API.
+
+W `rezerwacja/config/config.php` ustaw:
+```php
+'bookings_backup_token' => 'USTAW_WLASNY_DLUGI_TOKEN',
+'bookings_backup_interval_seconds' => 21600,
+'bookings_backup_retention_days' => 30,
+```
+
+Przydatne endpointy:
+- Status backupu (admin): `GET /rezerwacja/api/admin/backups/bookings/status`
+- Wymuszenie backupu (admin lub token): `POST /rezerwacja/api/admin/backups/bookings/run`
+- Wymuszenie backupu tokenem (np. cron): `GET /rezerwacja/api/backups/bookings/run?token=...`
+
+## 6. Przełączenie aplikacji na tryb Produkcyjny
 Zanim wykonasz `npm run build`, upewnij się że posiadasz odpowiedni wpis konfiguracyjny (np. w `.env`):
 `VITE_API_MODE="production"`
 `VITE_API_BASE_URL="/rezerwacja/api"`
 Wtedy aplikacja po zbudowaniu będzie pytać pliki PHP.
 
-## 6. Testy Pomyślnego Wdrożenia
-1. Wejdź na `https://twoja-domena.pl/rezerwacja/` i spróbuj przejść proces umawiania konsultacji.
+## 7. Testy Pomyślnego Wdrożenia
+1. Wejdź na `https://marcin-romanowski.pl/` i spróbuj przejść proces umawiania konsultacji.
 2. Sprawdź tabelę `bookings` w swojej bazie phpMyAdmin czy wpis poprawnie się zarejestrował.
-3. Wejdź na `https://twoja-domena.pl/rezerwacja/admin` aby upewnić się że z punktu API dla Administratora odpowiedź poprawnie ładuje pobraną listę wizyt z dzisiaj.
+3. Wejdź na `https://marcin-romanowski.pl/admin` i zaloguj się hasłem z `admin_password`.
 
-## 7. Konfiguracja Asystenta AI (Gemini) - Za darmo
+## 8. Konfiguracja Asystenta AI (Gemini) - Za darmo
 System posiada wbudowanego inteligentnego asystenta do zarządzania kalendarzem głosem i tekstem, wspieranego przez najnowszy model Google Gemini.
 
 1. Wejdź na stronę [Google AI Studio](https://aistudio.google.com/app/apikey) i zaloguj się swoim kontem Google.
