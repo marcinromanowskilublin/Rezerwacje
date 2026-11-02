@@ -47,7 +47,7 @@ export default function BookingStart() {
       <OfficeNetworkBackdrop />
 
       <div className="relative z-10 mx-auto w-full max-w-lg">
-      <section aria-labelledby="doctor-name" className="text-center">
+        <section aria-labelledby="doctor-name" className="text-center">
         <div className="mx-auto h-[156px] w-[156px] overflow-hidden rounded-full bg-[#ebe8e1] shadow-[0_18px_50px_rgba(31,92,81,0.10)] ring-1 ring-[#d8d4cc]">
           <img
             src={site.portraitSrc}
@@ -66,11 +66,13 @@ export default function BookingStart() {
           aria-hidden="true"
           className="mx-auto mt-4 block h-px w-[min(72vw,280px)] bg-[#8da49f]/55"
         />
-      </section>
+        </section>
+      </div>
 
+      <div className="relative z-10 mx-auto mt-7 grid w-full max-w-5xl items-start gap-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(300px,0.85fr)] lg:gap-6">
       <section
         aria-labelledby="visit-type-heading"
-        className="mt-7 rounded-[1.35rem] border border-[#dedbd3] bg-white/95 p-5 shadow-[0_24px_70px_rgba(31,72,63,0.07)] backdrop-blur-sm sm:p-6"
+        className="rounded-[1.35rem] border border-[#dedbd3] bg-white/95 p-5 shadow-[0_24px_70px_rgba(31,72,63,0.07)] backdrop-blur-sm sm:p-6"
       >
         <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-400">
           {scheduleOn === false ? 'Wizyty' : 'Umów wizytę'}
@@ -136,9 +138,25 @@ export default function BookingStart() {
         </p>
       </section>
 
-      <div className="mt-5">
+      <aside className="grid gap-5" aria-label="Informacje gabinetu">
+        <section
+          aria-labelledby="news-heading"
+          className="rounded-[1.35rem] border border-[#cddfd9] bg-[#e8f3f0]/95 p-5 shadow-[0_20px_55px_rgba(31,72,63,0.05)] backdrop-blur-sm sm:p-6"
+        >
+          <div className="flex items-center justify-between gap-4">
+            <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-[#39766b]">Aktualności</p>
+            <span className="h-2 w-2 rounded-full bg-[#e6816d]" aria-hidden="true" />
+          </div>
+          <h2 id="news-heading" className="mt-5 text-xl font-medium tracking-[-0.02em] text-neutral-900">
+            Konsultacje wznowione
+          </h2>
+          <p className="mt-3 text-sm leading-6 text-neutral-600">
+            Rezerwacja konsultacji online jest ponownie dostępna. Aktualne terminy można sprawdzić w terminarzu.
+          </p>
+        </section>
+
           <SiteContact />
-      </div>
+      </aside>
       </div>
     </div>
   );

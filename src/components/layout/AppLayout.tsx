@@ -51,7 +51,7 @@ export default function AppLayout() {
   return (
     <div className="site-paper flex min-h-screen flex-col font-sans text-neutral-900 selection:bg-[#d4efe8]">
       <header className="sticky top-0 z-20 border-b border-[#dfddd6] bg-[#f4f3ef]/92 px-5 py-3.5 backdrop-blur-md">
-        <div className="mx-auto flex w-full max-w-3xl items-start justify-between gap-3">
+        <div className="mx-auto flex w-full max-w-6xl flex-wrap items-start justify-between gap-x-6 gap-y-3">
           <Link
             to="/"
             aria-label={`${site.businessName} — rezerwacja wizyty`}
@@ -79,6 +79,16 @@ export default function AppLayout() {
               </span>
             </span>
           </Link>
+          <div className="order-3 w-full border-t border-[#e5e2db] pt-3 lg:order-none lg:w-auto lg:border-0 lg:pt-1.5">
+            <nav aria-label="Główne sekcje" className="flex items-center gap-x-5 overflow-x-auto pb-0.5 text-[11px] font-medium text-neutral-500 sm:gap-x-6 sm:text-xs">
+              <span className="shrink-0 text-[#007865]" aria-current="page">Rezerwacja</span>
+              {['Aktualności', 'O mnie', 'Oferta', 'ADHD', 'Dokumenty'].map((item) => (
+                <span key={item} className="shrink-0 cursor-default select-none" aria-disabled="true">
+                  {item}
+                </span>
+              ))}
+            </nav>
+          </div>
           <div className="flex shrink-0 items-center gap-3 sm:gap-5">
             <div className="hidden items-center gap-2 border-r border-[#ddd9d0] pr-5 sm:flex" aria-label="W sieci HejDok">
               <span className="text-[10px] text-neutral-400">W sieci</span>
@@ -99,7 +109,7 @@ export default function AppLayout() {
       </main>
 
       <footer className="mt-auto border-t border-[#e4e2dc] bg-[#f4f3ef] px-5 py-7">
-        <div className="mx-auto flex max-w-3xl flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="mx-auto flex max-w-6xl flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="min-w-0">
             <p className="text-sm font-medium text-[#007865]">{site.businessName}</p>
             <p className="mt-1 text-xs leading-5 text-neutral-500">{fullAddress()}</p>
