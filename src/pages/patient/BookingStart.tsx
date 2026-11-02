@@ -142,13 +142,13 @@ export default function BookingStart() {
               <span className="h-2 w-2 rounded-full bg-[#007865]" aria-hidden="true" />
             </div>
             <h2 id="news-heading" className="mt-5 text-xl font-medium tracking-[-0.02em] text-neutral-900">
-              Informacja o konsultacjach
+              Konsultacje wznowione
             </h2>
             <p className="mt-3 text-sm leading-6 text-neutral-600">
-              Konsultacje zostaną wznowione. Dokładny termin pojawi się tutaj po jego potwierdzeniu.
+              Rezerwacja konsultacji online jest ponownie dostępna. Aktualne terminy można sprawdzić w terminarzu.
             </p>
             <p className="mt-5 border-t border-[#cadfd9] pt-4 text-xs leading-5 text-[#52746d]">
-              Komunikat organizacyjny bez publikowania niepotwierdzonej daty.
+              Bez publikowania niepotwierdzonej daty wznowienia.
             </p>
           </section>
 
