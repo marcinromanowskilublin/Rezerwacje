@@ -6,3 +6,15 @@ coverage/
 *.log
 .env*
 !.env.example
+**/config.php
+!**/config.example.php
+.cursor/rules/hasla.mdc
+storage/
+deploy-homepl/storage/
+
+# Local recordings and patient/media files must stay outside git.
+*.m4a
+*.mp3
+*.wav
+*.mp4
+*.mov
