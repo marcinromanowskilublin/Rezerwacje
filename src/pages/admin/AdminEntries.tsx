@@ -46,7 +46,7 @@ function AdminEntriesPanel() {
       <p className="max-w-2xl text-sm leading-6 text-neutral-500">
         Jedno wejście to jedna przeglądarka w danym dniu. Ta sama osoba na telefonie i na komputerze
         policzy się dwa razy. Przeglądarek nie łączę, bo do tego trzeba by rozpoznawać urządzenie.
-        Sprawdzenie strony w przeglądarce, w której jesteś zalogowany do panelu, nie wlicza się.
+        Wejścia z tej przeglądarki nie wliczają się, dopóki jest w niej otwarty zalogowany panel.
       </p>
 
       <div className="grid grid-cols-3 gap-3 rounded-2xl border border-neutral-200 bg-white p-5">
