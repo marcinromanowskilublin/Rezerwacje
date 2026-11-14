@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { bookingApi } from '../../services/bookingApi';
 import { useBooking } from './BookingContext';
@@ -7,6 +7,8 @@ import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterv
 import { pl } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '../../components/ui/Button';
+import { openingMonthSignal } from '../../lib/visitFunnel';
+import { noteStage } from '../../lib/visitStats';
 
 export default function DaySelector() {
   const { state, updateState } = useBooking();
@@ -14,19 +16,44 @@ export default function DaySelector() {
   const [currentMonth, setCurrentMonth] = useState(startOfMonth(new Date()));
   const [availableDays, setAvailableDays] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const openedMonth = useRef(currentMonth);
+  const judgedOpeningMonth = useRef(false);
+  const requestSerial = useRef(0);
 
   useEffect(() => {
     if (!state.visitType) {
       navigate('/');
       return;
     }
+    const serial = ++requestSerial.current;
+    const month = currentMonth;
+    const noteOpeningMonth = (failed: boolean, count: number) => {
+      if (judgedOpeningMonth.current) return;
+      const signal = openingMonthSignal(
+        openedMonth.current.getFullYear(),
+        openedMonth.current.getMonth(),
+        month.getFullYear(),
+        month.getMonth(),
+        failed,
+        count,
+      );
+      if (signal === null) return;
+      judgedOpeningMonth.current = true;
+      if (signal === 'failed') noteStage('schedule_failed');
+      if (signal === 'empty') noteStage('empty_days');
+    };
     setLoading(true);
-    bookingApi.getAvailableDays(state.visitType.id, currentMonth.getMonth() + 1, currentMonth.getFullYear())
+    bookingApi.getAvailableDays(state.visitType.id, month.getMonth() + 1, month.getFullYear())
       .then(days => {
-        setAvailableDays(Array.isArray(days) ? days : []);
+        const list = Array.isArray(days) ? days : [];
+        noteOpeningMonth(false, list.length);
+        if (serial !== requestSerial.current) return;
+        setAvailableDays(list);
         setLoading(false);
       })
       .catch(() => {
+        noteOpeningMonth(true, 0);
+        if (serial !== requestSerial.current) return;
         setAvailableDays([]);
         setLoading(false);
       });
@@ -49,6 +76,7 @@ export default function DaySelector() {
     const dateStr = format(date, 'yyyy-MM-dd');
     if (availableDays.includes(dateStr)) {
       updateState({ date: dateStr });
+      noteStage('day');
       navigate('/slot');
     }
   };

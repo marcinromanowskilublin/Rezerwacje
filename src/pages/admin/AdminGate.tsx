@@ -2,6 +2,7 @@ import { FormEvent, ReactNode, useEffect, useState } from 'react';
 import { Navigate, NavLink } from 'react-router-dom';
 import { Button } from '../../components/ui/Button';
 import { config } from '../../config/features';
+import { holdOwnerBrowser, releaseOwnerBrowser } from '../../lib/visitStats';
 
 const ADMIN_KEY = 'rezerwacje_admin_password';
 const ADMIN_LOGIN = 'admin';
@@ -25,6 +26,13 @@ export default function AdminGate({ children, loginOnly = false }: { children: R
     const stored = readAdminPassword();
     if (stored) void unlock(ADMIN_LOGIN, stored);
   }, []);
+
+  useEffect(() => {
+    if (!authed) return;
+    holdOwnerBrowser();
+    const timer = window.setInterval(holdOwnerBrowser, 20000);
+    return () => window.clearInterval(timer);
+  }, [authed]);
 
   const unlock = async (login: string, value: string) => {
     if (login.trim().toLowerCase() !== ADMIN_LOGIN) {
@@ -69,6 +77,7 @@ export default function AdminGate({ children, loginOnly = false }: { children: R
 
   const logout = () => {
     sessionStorage.removeItem(ADMIN_KEY);
+    releaseOwnerBrowser();
     setAuthed(false);
     setPassword('');
   };
@@ -125,7 +134,7 @@ export default function AdminGate({ children, loginOnly = false }: { children: R
   return (
     <div className="w-full max-w-4xl mx-auto space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <nav className="flex gap-2">
+        <nav className="flex flex-wrap gap-2">
           <NavLink
             to="/admin"
             end
@@ -150,6 +159,14 @@ export default function AdminGate({ children, loginOnly = false }: { children: R
             }
           >
             Ustawienia
+          </NavLink>
+          <NavLink
+            to="/admin/wejscia"
+            className={({ isActive }) =>
+              `h-10 px-4 rounded-xl text-xs uppercase tracking-widest flex items-center ${isActive ? 'bg-neutral-900 text-white' : 'border border-neutral-200 text-neutral-600 hover:text-neutral-900'}`
+            }
+          >
+            Wejścia
           </NavLink>
         </nav>
         <Button onClick={logout} variant="ghost" className="h-10 text-xs">Wyloguj</Button>

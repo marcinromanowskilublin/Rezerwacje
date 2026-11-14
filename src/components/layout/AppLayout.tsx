@@ -1,9 +1,7 @@
 import { useEffect } from 'react';
 import { Outlet, Link, NavLink, useLocation } from 'react-router-dom';
 import { formatNip, formatRegon, fullAddress, site } from '../../config/site';
-import { bookingApi } from '../../services/bookingApi';
-
-let pageViewRecorded = false;
+import { notePageView, noteStage } from '../../lib/visitStats';
 
 export default function AppLayout() {
   const location = useLocation();
@@ -38,15 +36,9 @@ export default function AppLayout() {
   }, [location.pathname]);
 
   useEffect(() => {
-    const isPrivateRoute =
-      location.pathname.startsWith('/admin') || location.pathname.startsWith('/manage');
-    if (pageViewRecorded || isPrivateRoute) {
-      return;
-    }
-
-    pageViewRecorded = true;
-    void bookingApi.recordPageView().catch(() => undefined);
-  }, []);
+    notePageView();
+    noteStage('enter');
+  }, [location.pathname]);
 
   return (
     <div className="site-paper flex min-h-screen flex-col font-sans text-neutral-900 selection:bg-[#d4efe8]">

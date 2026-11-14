@@ -6,12 +6,15 @@ import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import { ChevronLeft } from 'lucide-react';
 import { slotRange } from '../../lib/schedule';
+import { availabilitySignal } from '../../lib/visitFunnel';
+import { noteStage } from '../../lib/visitStats';
 
 export default function SlotSelector() {
   const { state, updateState } = useBooking();
   const navigate = useNavigate();
   const [slots, setSlots] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
 
   useEffect(() => {
     if (!state.visitType || !state.date) {
@@ -19,19 +22,30 @@ export default function SlotSelector() {
       return;
     }
     setLoading(true);
+    setLoadFailed(false);
     bookingApi.getAvailableSlots(state.date, state.visitType.id)
       .then(s => {
         setSlots(Array.isArray(s) ? s : []);
+        setLoadFailed(false);
         setLoading(false);
       })
       .catch(() => {
         setSlots([]);
+        setLoadFailed(true);
         setLoading(false);
       });
   }, [state.date, state.visitType, navigate]);
 
+  useEffect(() => {
+    if (loading) return;
+    const signal = availabilitySignal(loadFailed, slots.length);
+    if (signal === 'failed') noteStage('schedule_failed');
+    if (signal === 'empty') noteStage('empty_hours');
+  }, [loading, loadFailed, slots.length]);
+
   const handleSelect = (time: string) => {
     updateState({ time });
+    noteStage('hour');
     navigate('/form');
   };
 

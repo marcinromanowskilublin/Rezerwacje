@@ -107,6 +107,11 @@ function analytics_today(): string
     return $now->format('Y-m-d');
 }
 
+function analytics_stage_names(): array
+{
+    return ['enter', 'kind', 'day', 'hour', 'data', 'booked', 'empty_days', 'empty_hours', 'schedule_failed', 'save_failed'];
+}
+
 try {
     $pdo = db();
     $pdo->exec(
@@ -116,19 +121,45 @@ try {
             PRIMARY KEY (view_date)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
     );
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS page_stage_daily (
+            view_date date NOT NULL,
+            stage varchar(32) NOT NULL,
+            stage_count bigint unsigned NOT NULL DEFAULT 0,
+            PRIMARY KEY (view_date, stage)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
+    );
 
     if ($route === '/analytics/view' && $method === 'POST') {
         if (!analytics_is_same_site_request()) {
             json_response(['error' => 'Forbidden'], 403);
         }
 
+        $input = json_input();
+        $stage = isset($input['stage']) ? (string) $input['stage'] : '';
+        $countView = $stage === '' || !empty($input['view']);
+        if ($stage !== '' && !in_array($stage, analytics_stage_names(), true)) {
+            json_response(['error' => 'Bad stage'], 400);
+        }
+
         if (!analytics_is_obvious_bot() && !analytics_is_excluded_ip()) {
-            $stmt = $pdo->prepare(
-                'INSERT INTO page_views_daily (view_date, view_count)
-                 VALUES (?, 1)
-                 ON DUPLICATE KEY UPDATE view_count = view_count + 1'
-            );
-            $stmt->execute([analytics_today()]);
+            $today = analytics_today();
+            if ($countView) {
+                $stmt = $pdo->prepare(
+                    'INSERT INTO page_views_daily (view_date, view_count)
+                     VALUES (?, 1)
+                     ON DUPLICATE KEY UPDATE view_count = view_count + 1'
+                );
+                $stmt->execute([$today]);
+            }
+            if ($stage !== '') {
+                $stmt = $pdo->prepare(
+                    'INSERT INTO page_stage_daily (view_date, stage, stage_count)
+                     VALUES (?, ?, 1)
+                     ON DUPLICATE KEY UPDATE stage_count = stage_count + 1'
+                );
+                $stmt->execute([$today, $stage]);
+            }
         }
 
         json_response(['ok' => true]);
@@ -140,6 +171,7 @@ try {
         $timezone = new DateTimeZone('Europe/Warsaw');
         $today = new DateTimeImmutable('today', $timezone);
         $from = $today->modify('-29 days')->format('Y-m-d');
+        $stageNames = analytics_stage_names();
 
         $total = (int) $pdo->query(
             'SELECT COALESCE(SUM(view_count), 0) FROM page_views_daily'
@@ -158,12 +190,32 @@ try {
             $counts[(string) $row['view_date']] = (int) $row['view_count'];
         }
 
+        $stageStmt = $pdo->prepare(
+            'SELECT view_date, stage, stage_count
+             FROM page_stage_daily
+             WHERE view_date >= ?'
+        );
+        $stageStmt->execute([$from]);
+        $stageCounts = [];
+        foreach ($stageStmt->fetchAll() as $row) {
+            $date = (string) $row['view_date'];
+            $name = (string) $row['stage'];
+            if (!in_array($name, $stageNames, true)) {
+                continue;
+            }
+            if (!isset($stageCounts[$date])) {
+                $stageCounts[$date] = array_fill_keys($stageNames, 0);
+            }
+            $stageCounts[$date][$name] = (int) $row['stage_count'];
+        }
+
         $days = [];
         for ($offset = 29; $offset >= 0; $offset--) {
             $date = $today->modify("-{$offset} days")->format('Y-m-d');
             $days[] = [
                 'date' => $date,
                 'count' => $counts[$date] ?? 0,
+                'stages' => $stageCounts[$date] ?? array_fill_keys($stageNames, 0),
             ];
         }
 

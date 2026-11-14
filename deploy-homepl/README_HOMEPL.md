@@ -24,6 +24,7 @@ Przed migracją wykonaj kopię bazy. Następnie uruchom tylko brakujące migracj
 1. `deploy-homepl/database/migrate_grafik.sql` — pola grafiku, jeśli nie były wcześniej dodane.
 2. `deploy-homepl/database/migrate_analytics.sql` — anonimowy licznik odsłon.
 3. `deploy-homepl/database/migrate_hardening.sql` — usuwa nadmiarowe pole licznika i naprawia indeks rezerwacji, jeżeli starsza wersja już je utworzyła.
+4. `deploy-homepl/database/migrate_visit_stages.sql` — dzienne sumy unikalnych kroków rezerwacji. Samo wejście na stronę tworzy tę tabelę też przy pierwszym zapytaniu licznika.
 
 Ponowne wgranie samego `schema.sql` nie aktualizuje struktury istniejących tabel.
 
