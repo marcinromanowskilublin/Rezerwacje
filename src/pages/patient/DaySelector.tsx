@@ -7,6 +7,7 @@ import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterv
 import { pl } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '../../components/ui/Button';
+import { availabilitySignal } from '../../lib/visitFunnel';
 import { noteStage } from '../../lib/visitStats';
 
 export default function DaySelector() {
@@ -15,6 +16,7 @@ export default function DaySelector() {
   const [currentMonth, setCurrentMonth] = useState(startOfMonth(new Date()));
   const [availableDays, setAvailableDays] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
   const sawFirstMonth = useRef(false);
 
   useEffect(() => {
@@ -23,22 +25,30 @@ export default function DaySelector() {
       return;
     }
     setLoading(true);
+    setLoadFailed(false);
     bookingApi.getAvailableDays(state.visitType.id, currentMonth.getMonth() + 1, currentMonth.getFullYear())
       .then(days => {
         setAvailableDays(Array.isArray(days) ? days : []);
+        setLoadFailed(false);
         setLoading(false);
       })
       .catch(() => {
         setAvailableDays([]);
+        setLoadFailed(true);
         setLoading(false);
       });
   }, [currentMonth, state.visitType, navigate]);
 
   useEffect(() => {
     if (loading || sawFirstMonth.current) return;
+    const signal = availabilitySignal(loadFailed, availableDays.length);
+    if (signal === 'failed') {
+      noteStage('schedule_failed');
+      return;
+    }
     sawFirstMonth.current = true;
-    if (availableDays.length === 0) noteStage('empty_days');
-  }, [loading, availableDays.length]);
+    if (signal === 'empty') noteStage('empty_days');
+  }, [loading, loadFailed, availableDays.length]);
 
   const days = eachDayOfInterval({
     start: startOfMonth(currentMonth),

@@ -10,6 +10,7 @@ export const FUNNEL = [
 export const SIGNALS = [
   { id: 'empty_days', label: 'Brak wolnych dni w pierwszym miesiącu' },
   { id: 'empty_hours', label: 'Brak wolnych godzin w wybranym dniu' },
+  { id: 'schedule_failed', label: 'Lista terminów się nie wczytała' },
   { id: 'save_failed', label: 'Zapis wizyty nie przeszedł' },
 ] as const;
 
@@ -46,6 +47,12 @@ export function stageTotals(days: Array<{ stages?: StageCounts }>): StageCounts 
     totals[stage] = sumStage(days, stage);
   }
   return totals;
+}
+
+export function availabilitySignal(loadFailed: boolean, count: number): 'empty' | 'failed' | null {
+  if (loadFailed) return 'failed';
+  if (count === 0) return 'empty';
+  return null;
 }
 
 export function largestDrop(counts: StageCounts): FunnelDrop | null {

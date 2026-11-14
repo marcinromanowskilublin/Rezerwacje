@@ -109,7 +109,7 @@ function analytics_today(): string
 
 function analytics_stage_names(): array
 {
-    return ['enter', 'kind', 'day', 'hour', 'data', 'booked', 'empty_days', 'empty_hours', 'save_failed'];
+    return ['enter', 'kind', 'day', 'hour', 'data', 'booked', 'empty_days', 'empty_hours', 'schedule_failed', 'save_failed'];
 }
 
 try {
