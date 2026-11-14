@@ -6,6 +6,7 @@ import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import { ChevronLeft } from 'lucide-react';
 import { slotRange } from '../../lib/schedule';
+import { noteStage } from '../../lib/visitStats';
 
 export default function SlotSelector() {
   const { state, updateState } = useBooking();
@@ -30,8 +31,14 @@ export default function SlotSelector() {
       });
   }, [state.date, state.visitType, navigate]);
 
+  useEffect(() => {
+    if (loading || slots.length > 0) return;
+    noteStage('empty_hours');
+  }, [loading, slots.length]);
+
   const handleSelect = (time: string) => {
     updateState({ time });
+    noteStage('hour');
     navigate('/form');
   };
 

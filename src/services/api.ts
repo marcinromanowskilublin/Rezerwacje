@@ -19,6 +19,7 @@ export interface BookingApi {
   getAvailableDays(visitTypeId: string, month: number, year: number): Promise<string[]>;
   getAvailableSlots(date: string, visitTypeId: string, excludeBookingId?: string): Promise<string[]>;
   recordPageView(): Promise<void>;
+  recordVisitStage(stage: string): Promise<void>;
   getAnalytics(): Promise<AnalyticsSummary>;
   createBooking(data: CreateBookingInput): Promise<Booking>;
   getBookingByToken(token: string): Promise<Booking>;

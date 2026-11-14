@@ -46,7 +46,8 @@ export const productionBookingApi: BookingApi = {
     const extra = excludeBookingId ? `&excludeBookingId=${encodeURIComponent(excludeBookingId)}` : '';
     return fetchApi<string[]>(`/availability/slots?date=${date}&visitTypeId=${visitTypeId}${extra}`);
   },
-  recordPageView: () => fetchApi<void>('/analytics/view', { method: 'POST' }),
+  recordPageView: () => fetchApi<void>('/analytics/view', { method: 'POST', body: JSON.stringify({ view: true }) }),
+  recordVisitStage: (stage) => fetchApi<void>('/analytics/view', { method: 'POST', body: JSON.stringify({ stage }) }),
   getAnalytics: () => fetchApi<AnalyticsSummary>('/admin/analytics', undefined, true),
   createBooking: (data) => fetchApi<Booking>('/bookings', { method: 'POST', body: JSON.stringify(data) }),
   getBookingByToken: (token) => fetchApi<Booking>(`/bookings?token=${encodeURIComponent(token)}`),

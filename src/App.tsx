@@ -17,6 +17,7 @@ import AdminLogin from './pages/admin/AdminLogin';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminSchedule from './pages/admin/AdminSchedule';
 import AdminSettings from './pages/admin/AdminSettings';
+import AdminEntries from './pages/admin/AdminEntries';
 import PrivacyPolicy from './pages/legal/PrivacyPolicy';
 import BookingTerms from './pages/legal/BookingTerms';
 import { BookingProvider } from './pages/patient/BookingContext';
@@ -69,6 +70,7 @@ export default function App() {
           <Route path="admin" element={<AdminDashboard />} />
           <Route path="admin/grafik" element={<AdminSchedule />} />
           <Route path="admin/ustawienia" element={<AdminSettings />} />
+          <Route path="admin/wejscia" element={<AdminEntries />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

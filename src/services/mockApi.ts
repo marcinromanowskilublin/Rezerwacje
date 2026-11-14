@@ -12,6 +12,7 @@ import {
 } from '../types';
 import { BookingApi, CreateBookingInput } from './api';
 import { fromMin, hm, rangesOverlap, ruleMatchesVisit, slotStep, toMin } from '../lib/schedule';
+import { emptyStageCounts, VisitStage } from '../lib/visitFunnel';
 
 const STORE_KEY = 'rezerwacje_store_v2';
 
@@ -74,6 +75,7 @@ function emptyStore(): Store {
 let memoryStore = emptyStore();
 let mockPageViewTotal = 0;
 const mockPageViewsByDate: Record<string, number> = {};
+const mockStagesByDate: Record<string, Record<string, number>> = {};
 let mockBackupState: BookingsBackupStatus = {
   interval_seconds: 21600,
   retention_days: 30,
@@ -224,13 +226,24 @@ export const mockBookingApi: BookingApi = {
     mockPageViewsByDate[today] = (mockPageViewsByDate[today] || 0) + 1;
   },
 
+  async recordVisitStage(stage: string) {
+    const today = localDateKey();
+    const stages = mockStagesByDate[today] || emptyStageCounts();
+    stages[stage as VisitStage] = (stages[stage] || 0) + 1;
+    mockStagesByDate[today] = stages;
+  },
+
   async getAnalytics(): Promise<AnalyticsSummary> {
     const days = [];
     for (let offset = 29; offset >= 0; offset--) {
       const date = new Date();
       date.setDate(date.getDate() - offset);
       const key = localDateKey(date);
-      days.push({ date: key, count: mockPageViewsByDate[key] || 0 });
+      days.push({
+        date: key,
+        count: mockPageViewsByDate[key] || 0,
+        stages: { ...emptyStageCounts(), ...(mockStagesByDate[key] || {}) },
+      });
     }
     const today = localDateKey();
     return {

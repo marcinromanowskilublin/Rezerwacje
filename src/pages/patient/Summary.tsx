@@ -8,6 +8,7 @@ import { Button } from '../../components/ui/Button';
 import { bookingApi } from '../../services/bookingApi';
 import { slotRange } from '../../lib/schedule';
 import { formatZl, visitPriceZl } from '../../config/site';
+import { noteStage } from '../../lib/visitStats';
 
 export default function Summary() {
   const { state, reset } = useBooking();
@@ -37,9 +38,11 @@ export default function Summary() {
       });
 
       submittedRef.current = true;
+      noteStage('booked');
       navigate('/confirmation', { state: { booking } });
       reset();
     } catch (err: any) {
+      noteStage('save_failed');
       setError(err.message || 'Wystąpił błąd podczas rezerwacji.');
       setLoading(false);
     }

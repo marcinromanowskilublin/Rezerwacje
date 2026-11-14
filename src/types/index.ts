@@ -83,6 +83,7 @@ export interface SlotHold {
 export interface PageViewDay {
   date: string;
   count: number;
+  stages: Record<string, number>;
 }
 
 export interface AnalyticsSummary {

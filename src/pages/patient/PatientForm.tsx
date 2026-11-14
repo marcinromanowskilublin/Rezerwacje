@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useBooking } from './BookingContext';
 import { ChevronLeft } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
+import { noteStage } from '../../lib/visitStats';
 
 export default function PatientForm() {
   const { state, updateState } = useBooking();
@@ -27,6 +28,7 @@ export default function PatientForm() {
     }
 
     updateState({ patient: formData });
+    noteStage('data');
     navigate('/summary');
   };
 

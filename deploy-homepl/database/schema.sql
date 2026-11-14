@@ -37,6 +37,13 @@ CREATE TABLE IF NOT EXISTS `page_views_daily` (
   PRIMARY KEY (`view_date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS `page_stage_daily` (
+  `view_date` date NOT NULL,
+  `stage` varchar(32) NOT NULL,
+  `stage_count` bigint unsigned NOT NULL DEFAULT 0,
+  PRIMARY KEY (`view_date`, `stage`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS `bookings` (
   `id` varchar(36) NOT NULL,
   `visit_type_id` varchar(36) NOT NULL,

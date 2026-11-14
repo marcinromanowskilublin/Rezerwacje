@@ -136,10 +136,11 @@ export default function PrivacyPolicy() {
 
         <Section title="8. Statystyki i pliki cookies">
           <p>
-            Własny licznik przechowuje wyłącznie łączną liczbę odsłon przypisaną do dnia. Aplikacja nie
-            zapisuje na potrzeby statystyk adresów IP, lokalizacji, operatora, identyfikatorów
-            urządzenia, user-agenta ani źródła wejścia. Nie korzystamy z Google Analytics ani
-            reklamowych plików cookies.
+            Własny licznik, dostępny tylko w panelu gabinetu, zapisuje dzienne sumy: odsłony, unikalne
+            wejścia jednej przeglądarki oraz liczbę dojść do kolejnych kroków rezerwacji. Przeglądarka
+            pamięta u siebie, które kroki tego dnia już policzyła, i nie wysyła numeru osoby. Na serwer
+            nie trafia adres IP, lokalizacja, identyfikator urządzenia, user-agent ani źródło wejścia.
+            Nie korzystamy z Google Analytics ani reklamowych plików cookies.
           </p>
           <p>
             Dostawca hostingu może prowadzić standardowe logi techniczne serwera w celu zapewnienia

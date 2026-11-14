@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { bookingApi } from '../../services/bookingApi';
 import { useBooking } from './BookingContext';
@@ -7,6 +7,7 @@ import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterv
 import { pl } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '../../components/ui/Button';
+import { noteStage } from '../../lib/visitStats';
 
 export default function DaySelector() {
   const { state, updateState } = useBooking();
@@ -14,6 +15,7 @@ export default function DaySelector() {
   const [currentMonth, setCurrentMonth] = useState(startOfMonth(new Date()));
   const [availableDays, setAvailableDays] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const sawFirstMonth = useRef(false);
 
   useEffect(() => {
     if (!state.visitType) {
@@ -32,6 +34,12 @@ export default function DaySelector() {
       });
   }, [currentMonth, state.visitType, navigate]);
 
+  useEffect(() => {
+    if (loading || sawFirstMonth.current) return;
+    sawFirstMonth.current = true;
+    if (availableDays.length === 0) noteStage('empty_days');
+  }, [loading, availableDays.length]);
+
   const days = eachDayOfInterval({
     start: startOfMonth(currentMonth),
     end: endOfMonth(currentMonth)
@@ -49,6 +57,7 @@ export default function DaySelector() {
     const dateStr = format(date, 'yyyy-MM-dd');
     if (availableDays.includes(dateStr)) {
       updateState({ date: dateStr });
+      noteStage('day');
       navigate('/slot');
     }
   };

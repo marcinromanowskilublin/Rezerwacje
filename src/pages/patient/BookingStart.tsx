@@ -7,6 +7,7 @@ import { formatZl, site, visitPriceZl } from '../../config/site';
 import { config } from '../../config/features';
 import SiteContact from '../../components/layout/SiteContact';
 import OfficeNetworkBackdrop from '../../components/layout/OfficeNetworkBackdrop';
+import { noteStage } from '../../lib/visitStats';
 
 export default function BookingStart() {
   const [visitTypes, setVisitTypes] = useState<VisitType[]>([]);
@@ -39,6 +40,7 @@ export default function BookingStart() {
 
   const handleSelect = (vt: VisitType) => {
     updateState({ visitType: vt });
+    noteStage('kind');
     navigate('/day');
   };
 
