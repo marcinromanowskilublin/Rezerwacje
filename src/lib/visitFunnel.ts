@@ -55,6 +55,19 @@ export function availabilitySignal(loadFailed: boolean, count: number): 'empty' 
   return null;
 }
 
+export function openingMonthSignal(
+  openedYear: number,
+  openedMonth: number,
+  loadedYear: number,
+  loadedMonth: number,
+  loadFailed: boolean,
+  count: number,
+): 'empty' | 'failed' | 'ready' | null {
+  if (openedYear !== loadedYear || openedMonth !== loadedMonth) return null;
+  const signal = availabilitySignal(loadFailed, count);
+  return signal ?? 'ready';
+}
+
 export function largestDrop(counts: StageCounts): FunnelDrop | null {
   let best: FunnelDrop | null = null;
 
