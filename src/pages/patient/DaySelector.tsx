@@ -45,17 +45,17 @@ export default function DaySelector() {
     setLoading(true);
     bookingApi.getAvailableDays(state.visitType.id, month.getMonth() + 1, month.getFullYear())
       .then(days => {
-        if (serial !== requestSerial.current) return;
         const list = Array.isArray(days) ? days : [];
+        noteOpeningMonth(false, list.length);
+        if (serial !== requestSerial.current) return;
         setAvailableDays(list);
         setLoading(false);
-        noteOpeningMonth(false, list.length);
       })
       .catch(() => {
+        noteOpeningMonth(true, 0);
         if (serial !== requestSerial.current) return;
         setAvailableDays([]);
         setLoading(false);
-        noteOpeningMonth(true, 0);
       });
   }, [currentMonth, state.visitType, navigate]);
 
