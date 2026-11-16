@@ -522,7 +522,7 @@ try {
                     $id = uniqid('b_', true);
                     $token = bin2hex(random_bytes(16));
                     $end = from_minutes(minutes($start) + (int) $visitType['duration_minutes']);
-                    $initialStatus = payment_gateway_configured() && (string) ($visitType['payment_policy'] ?? 'optional') === 'required'
+                    $initialStatus = payment_gateway_configured() && payments_visit_type_requires_payment($visitType)
                         ? 'pending_payment'
                         : 'pending';
 

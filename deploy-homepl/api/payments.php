@@ -69,10 +69,16 @@ function payments_visit_type(PDO $pdo, array $booking): ?array
     return $visitTypeId !== '' ? visit_type($pdo, $visitTypeId, false) : null;
 }
 
+function payments_visit_type_requires_payment(?array $visitType): bool
+{
+    return (string) ($visitType['payment_policy'] ?? 'optional') === 'required'
+        && (float) ($visitType['price'] ?? 0) > 0;
+}
+
 function payments_booking_requires_payment(PDO $pdo, array $booking): bool
 {
     $visitType = payments_visit_type($pdo, $booking);
-    return (string) ($visitType['payment_policy'] ?? 'optional') === 'required'
+    return payments_visit_type_requires_payment($visitType)
         && (string) ($booking['payment_status'] ?? 'unpaid') !== 'paid';
 }
 

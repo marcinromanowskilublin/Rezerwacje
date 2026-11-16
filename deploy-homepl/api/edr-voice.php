@@ -360,8 +360,13 @@ function edr_voice_linked_candidate(array $settings, array $booking): ?array
 
 function edr_voice_candidates(array $settings, array $booking): array
 {
-    $linked = edr_voice_linked_candidate($settings, $booking);
-    if ($linked !== null) {
+    $linked = null;
+    try {
+        $linked = edr_voice_linked_candidate($settings, $booking);
+    } catch (Throwable $error) {
+        error_log('EDR linked visit lookup failed: ' . $error->getMessage());
+    }
+    if ($linked !== null && !empty($linked['exact_name_match'])) {
         return [$linked];
     }
 
@@ -408,6 +413,19 @@ function edr_voice_candidates(array $settings, array $booking): array
         ];
     }
     usort($rows, static fn(array $a, array $b): int => ((int) $b['exact_name_match']) <=> ((int) $a['exact_name_match']));
+    if ($linked !== null) {
+        $linkedId = (int) ($linked['visit_id'] ?? 0);
+        $alreadyListed = false;
+        foreach ($rows as $row) {
+            if ((int) ($row['visit_id'] ?? 0) === $linkedId) {
+                $alreadyListed = true;
+                break;
+            }
+        }
+        if (!$alreadyListed) {
+            array_unshift($rows, $linked);
+        }
+    }
     return $rows;
 }
 
