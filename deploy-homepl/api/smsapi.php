@@ -272,7 +272,7 @@ function smsapi_send(PDO $pdo, string $phone, string $message, ?string $bookingI
     $providerStatus = is_array($item) ? (string) ($item['status'] ?? 'QUEUE') : '';
     if ($httpStatus >= 200 && $httpStatus < 300 && $providerId !== '') {
         $update = $pdo->prepare(
-            'UPDATE smsapi_messages SET provider_message_id = ?, status_name = ?, submitted_at = UTC_TIMESTAMP(), updated_at = UTC_TIMESTAMP() WHERE id = ?'
+            'UPDATE smsapi_messages SET provider_message_id = ?, status_name = ?, submitted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
         );
         $update->execute([$providerId, substr($providerStatus, 0, 32), $localId]);
         return ['ok' => true, 'message_id' => $providerId, 'status' => $providerStatus ?: 'QUEUE'];
@@ -281,7 +281,7 @@ function smsapi_send(PDO $pdo, string $phone, string $message, ?string $bookingI
     $errorCode = is_array($response) ? (string) ($response['error'] ?? '') : '';
     $state = ($curlError !== 0 || $httpStatus === 0) ? 'UNKNOWN' : 'FAILED';
     $update = $pdo->prepare(
-        'UPDATE smsapi_messages SET status_name = ?, provider_error_code = ?, updated_at = UTC_TIMESTAMP() WHERE id = ?'
+        'UPDATE smsapi_messages SET status_name = ?, provider_error_code = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
     );
     $update->execute([$state, substr($errorCode, 0, 32), $localId]);
     return ['ok' => false, 'error' => 'SMSAPI nie potwierdziło przyjęcia wiadomości. Sprawdź status przed ponowieniem.'];
@@ -351,10 +351,10 @@ function smsapi_handle_callback(string $method): bool
     try {
         $pdo = db();
         $byProviderId = $pdo->prepare(
-            'UPDATE smsapi_messages SET status_code = ?, status_name = ?, delivered_at = ?, updated_at = UTC_TIMESTAMP() WHERE provider_message_id = ?'
+            'UPDATE smsapi_messages SET status_code = ?, status_name = ?, delivered_at = ?, updated_at = CURRENT_TIMESTAMP WHERE provider_message_id = ?'
         );
         $byRef = $pdo->prepare(
-            'UPDATE smsapi_messages SET provider_message_id = COALESCE(provider_message_id, ?), status_code = ?, status_name = ?, delivered_at = ?, updated_at = UTC_TIMESTAMP() WHERE callback_ref = ?'
+            'UPDATE smsapi_messages SET provider_message_id = COALESCE(provider_message_id, ?), status_code = ?, status_name = ?, delivered_at = ?, updated_at = CURRENT_TIMESTAMP WHERE callback_ref = ?'
         );
         foreach ($ids as $index => $idValue) {
             $id = trim((string) $idValue);
@@ -364,7 +364,9 @@ function smsapi_handle_callback(string $method): bool
             }
             $name = substr(trim((string) ($names[$index] ?? '')), 0, 32);
             $epoch = (int) ($doneDates[$index] ?? 0);
-            $deliveredAt = $epoch > 0 ? gmdate('Y-m-d H:i:s', $epoch) : null;
+            $deliveredAt = $epoch > 0
+                ? (new DateTimeImmutable('@' . $epoch))->setTimezone(new DateTimeZone('Europe/Warsaw'))->format('Y-m-d H:i:s')
+                : null;
             $byProviderId->execute([$status, $name, $deliveredAt, $id]);
             if ($byProviderId->rowCount() === 0) {
                 $ref = trim((string) ($refs[$index] ?? ''));

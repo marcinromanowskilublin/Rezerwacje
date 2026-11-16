@@ -182,7 +182,7 @@ function contact_center_handle_route(string $route, string $method): bool
     if ($route === '/admin/contact-intents' && $method === 'POST') {
         $data = json_input();
         $id = 'intent_' . bin2hex(random_bytes(8));
-        $now = gmdate('Y-m-d H:i:s');
+        $now = (new DateTimeImmutable('now', new DateTimeZone('Europe/Warsaw')))->format('Y-m-d H:i:s');
         $intent = [
             'channel' => contact_center_value($data, 'channel', 'manual'),
             'source_id' => contact_center_value($data, 'source_id'),
