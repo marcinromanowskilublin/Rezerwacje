@@ -1,8 +1,16 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { addDays, format, parseISO, startOfToday } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import { bookingApi } from '../../services/bookingApi';
-import { AvailabilityRule, BlockedPeriod, Booking, BookingStatus, SlotAudience, VisitType } from '../../types';
+import {
+  AvailabilityRule,
+  BlockedPeriod,
+  Booking,
+  BookingStatus,
+  EdrBookingDetails,
+  SlotAudience,
+  VisitType,
+} from '../../types';
 import { Button, cn } from '../../components/ui/Button';
 import { AUDIENCE_OPTIONS, WEEKDAYS } from '../../lib/schedule';
 import AdminGate from './AdminGate';
@@ -136,6 +144,24 @@ function AdminBookings() {
   const [realigning, setRealigning] = useState(false);
   const [realignMessage, setRealignMessage] = useState<string | null>(null);
   const [realignError, setRealignError] = useState<string | null>(null);
+
+  const [edrBooking, setEdrBooking] = useState<Booking | null>(null);
+  const [edrDetails, setEdrDetails] = useState<EdrBookingDetails | null>(null);
+  const [edrPatientId, setEdrPatientId] = useState('');
+  const [edrTranscript, setEdrTranscript] = useState('');
+  const [edrExamination, setEdrExamination] = useState('');
+  const [edrRecommendation, setEdrRecommendation] = useState('');
+  const [edrSummary, setEdrSummary] = useState('');
+  const [edrTargetField, setEdrTargetField] = useState<'interview' | 'examination' | 'recommendation' | 'note'>('interview');
+  const [edrLoading, setEdrLoading] = useState(false);
+  const [edrSaving, setEdrSaving] = useState(false);
+  const [edrRecording, setEdrRecording] = useState(false);
+  const [edrTranscribing, setEdrTranscribing] = useState(false);
+  const [edrError, setEdrError] = useState<string | null>(null);
+  const [edrMessage, setEdrMessage] = useState<string | null>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
 
   const [bookingDraft, setBookingDraft] = useState<BookingDraft>({
     visit_type_id: '',
@@ -278,6 +304,164 @@ function AdminBookings() {
     await bookingApi.cancelBooking(id);
     await refreshMeta();
     await refreshDay(selectedDate);
+  };
+
+  const stopEdrStream = () => {
+    if (recorderRef.current && recorderRef.current.state === 'recording') {
+      recorderRef.current.stop();
+    }
+    recorderRef.current = null;
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    setEdrRecording(false);
+  };
+
+  const closeEdrModal = () => {
+    stopEdrStream();
+    setEdrBooking(null);
+  };
+
+  const openEdr = async (booking: Booking) => {
+    stopEdrStream();
+    setEdrBooking(booking);
+    setEdrDetails(null);
+    setEdrPatientId('');
+    setEdrTranscript('');
+    setEdrExamination('');
+    setEdrRecommendation('');
+    setEdrSummary('');
+    setEdrTargetField('interview');
+    setEdrError(null);
+    setEdrMessage(null);
+    setEdrLoading(true);
+    try {
+      const details = await bookingApi.getBookingEdrDetails(booking.id);
+      setEdrDetails(details);
+      setEdrPatientId(details.link?.edr_patient_id || '');
+    } catch (err: any) {
+      setEdrError(err?.message || 'Nie udało się wczytać statusu EDR.');
+    } finally {
+      setEdrLoading(false);
+    }
+  };
+
+  const refreshEdr = async () => {
+    if (!edrBooking) return;
+    const details = await bookingApi.getBookingEdrDetails(edrBooking.id);
+    setEdrDetails(details);
+    setEdrPatientId(details.link?.edr_patient_id || edrPatientId);
+  };
+
+  const syncEdrVisit = async () => {
+    if (!edrBooking || edrSaving) return;
+    setEdrSaving(true);
+    setEdrError(null);
+    setEdrMessage(null);
+    try {
+      const link = await bookingApi.syncBookingToEdr(edrBooking.id, edrPatientId.trim());
+      if (link.status === 'synced') {
+        setEdrMessage(`Wizyta podpięta w MyDr EDR (ID wizyty: ${link.edr_visit_id || '—'}).`);
+      } else {
+        setEdrMessage(link.last_error || 'Zapisano status synchronizacji.');
+      }
+      await refreshEdr();
+      await refreshMeta();
+      await refreshDay(selectedDate);
+    } catch (err: any) {
+      setEdrError(err?.message || 'Nie udało się podpiąć wizyty w EDR.');
+    } finally {
+      setEdrSaving(false);
+    }
+  };
+
+  const startEdrRecording = async () => {
+    if (edrRecording || edrTranscribing) return;
+    setEdrError(null);
+    setEdrMessage(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus'];
+      const mimeType = typeof MediaRecorder !== 'undefined'
+        ? candidates.find((item) => MediaRecorder.isTypeSupported(item)) || ''
+        : '';
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      streamRef.current = stream;
+      recorderRef.current = recorder;
+      chunksRef.current = [];
+      recorder.ondataavailable = (ev) => {
+        if (ev.data.size > 0) chunksRef.current.push(ev.data);
+      };
+      recorder.onstop = async () => {
+        stream.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' });
+        chunksRef.current = [];
+        if (blob.size === 0) return;
+        setEdrTranscribing(true);
+        setEdrMessage('Transkrypcja nagrania głosowego…');
+        try {
+          const result = await bookingApi.transcribeEdrAudio(blob);
+          setEdrTranscript((prev) => (prev.trim() ? `${prev.trim()}\n\n${result.transcript}` : result.transcript));
+          setEdrMessage('Nagranie przepisane. Możesz od razu podpiąć wywiad do wizyty w EDR.');
+        } catch (err: any) {
+          setEdrError(err?.message || 'Nie udało się przetranskrybować nagrania.');
+          setEdrMessage(null);
+        } finally {
+          setEdrTranscribing(false);
+        }
+      };
+      recorder.start(1000);
+      setEdrRecording(true);
+      setEdrMessage('Nagrywanie trwa… Kliknij „Zatrzymaj i przepisz”, aby zakończyć.');
+    } catch {
+      setEdrError('Brak dostępu do mikrofonu w przeglądarce.');
+    }
+  };
+
+  const stopEdrRecording = () => {
+    if (recorderRef.current && recorderRef.current.state === 'recording') {
+      recorderRef.current.stop();
+    }
+    recorderRef.current = null;
+    setEdrRecording(false);
+  };
+
+  const saveEdrSpokenNote = async () => {
+    if (!edrBooking || edrSaving) return;
+    if (!edrTranscript.trim() && !edrExamination.trim() && !edrRecommendation.trim() && !edrSummary.trim()) {
+      setEdrError('Podyktuj albo wpisz treść notatki z wizyty.');
+      return;
+    }
+    setEdrSaving(true);
+    setEdrError(null);
+    setEdrMessage(null);
+    try {
+      const note = await bookingApi.addEdrSpokenNote(edrBooking.id, {
+        transcript: edrTranscript.trim(),
+        examination: edrExamination.trim(),
+        recommendation: edrRecommendation.trim(),
+        summary: edrSummary.trim(),
+        target_field: edrTargetField,
+        patient_id: edrPatientId.trim(),
+        source: 'voice_visit',
+      });
+      if (note.status === 'synced') {
+        setEdrMessage(`Wizyta mówiona została podpięta do MyDr EDR (wizyta #${note.edr_visit_id || '—'}).`);
+      } else {
+        setEdrMessage(note.last_error || 'Notatka mówiona zapisana lokalnie i oczekuje na synchronizację z EDR.');
+      }
+      setEdrTranscript('');
+      setEdrExamination('');
+      setEdrRecommendation('');
+      setEdrSummary('');
+      await refreshEdr();
+      await refreshMeta();
+      await refreshDay(selectedDate);
+    } catch (err: any) {
+      setEdrError(err?.message || 'Nie udało się zapisać wizyty mówionej.');
+    } finally {
+      setEdrSaving(false);
+    }
   };
 
   const realignToLatest = async () => {
@@ -597,6 +781,9 @@ function AdminBookings() {
                           <td className="px-3 py-3 text-neutral-700">
                             <p>{typeName(booking.visit_type_id)}</p>
                             <p className="text-xs text-neutral-500">{statusLabel[booking.status] || booking.status}</p>
+                            {booking.external_event_id && (
+                              <p className="text-[11px] text-[#007865] font-medium">EDR: {booking.external_event_id}</p>
+                            )}
                           </td>
                           <td className="px-3 py-3">
                             <div className="flex flex-wrap gap-1.5">
@@ -614,6 +801,14 @@ function AdminBookings() {
                           </td>
                           <td className="px-3 py-3">
                             <div className="flex flex-wrap gap-1.5">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-[11px] border-[#007865] text-[#007865] hover:bg-[#e7f4f1]"
+                                onClick={() => void openEdr(booking)}
+                              >
+                                EDR / Wizyta mówiona
+                              </Button>
                               <Button variant="outline" size="sm" className="h-7 text-[11px]" onClick={() => openMove(booking)}>
                                 Przesuń
                               </Button>
@@ -877,6 +1072,195 @@ function AdminBookings() {
         {defaultsMessage && <p className="text-xs text-emerald-700">{defaultsMessage}</p>}
         {defaultsError && <p className="text-xs text-red-600">{defaultsError}</p>}
       </section>
+
+      {edrBooking && (
+        <div className="fixed inset-0 bg-black/45 z-30 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[92vh] overflow-y-auto p-6 space-y-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-medium text-neutral-900">EDR (MyDr EDM) — podpięcie wizyty i wizyta mówiona</h3>
+                <p className="text-sm text-neutral-500">
+                  {edrBooking.patient_name} · {edrBooking.booking_date} · {edrBooking.start_time.slice(0, 5)}–{edrBooking.end_time.slice(0, 5)}
+                </p>
+              </div>
+              <Button variant="ghost" className="h-8 text-xs" onClick={closeEdrModal}>
+                Zamknij
+              </Button>
+            </div>
+
+            {edrLoading ? (
+              <p className="text-sm text-neutral-500">Wczytywanie powiązania z MyDr EDR…</p>
+            ) : (
+              <>
+                <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 space-y-2 text-xs text-neutral-700">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="font-medium text-neutral-900">
+                      Status wizyty w MyDr EDR:{' '}
+                      <span className={edrDetails?.link?.status === 'synced' ? 'text-[#007865]' : 'text-amber-700'}>
+                        {edrDetails?.link?.status === 'synced'
+                          ? `podpięta (wizyta #${edrDetails.link.edr_visit_id})`
+                          : edrDetails?.link?.status || 'niepodpięta'}
+                      </span>
+                    </span>
+                    <span className="text-neutral-500">
+                      Lekarz #{edrDetails?.status.doctor_id ?? 21239} · Gabinet #{edrDetails?.status.office_id ?? 76376}
+                    </span>
+                  </div>
+                  {edrDetails?.link?.last_error && (
+                    <p className="text-red-600">{edrDetails.link.last_error}</p>
+                  )}
+                  <div className="flex flex-wrap items-end gap-2 pt-1">
+                    <label className="flex-1 min-w-[200px] space-y-1">
+                      <span className="block text-[11px] text-neutral-500">
+                        ID pacjenta w MyDr (opcjonalnie — puste wyszukuje/zakłada automatycznie po telefonie i e-mailu)
+                      </span>
+                      <input
+                        value={edrPatientId}
+                        onChange={(e) => setEdrPatientId(e.target.value)}
+                        placeholder="np. 42011 (zostaw puste dla auto-dopasowania)"
+                        className="h-9 w-full rounded-lg border border-neutral-200 bg-white px-3 text-xs text-neutral-900"
+                      />
+                    </label>
+                    <Button
+                      variant="outline"
+                      className="h-9 text-xs border-[#007865] text-[#007865] hover:bg-[#e7f4f1]"
+                      disabled={edrSaving}
+                      onClick={() => void syncEdrVisit()}
+                    >
+                      {edrSaving ? 'Synchronizacja…' : edrDetails?.link?.edr_visit_id ? 'Odśwież wizytę w EDR' : 'Podepnij umówioną wizytę w EDR'}
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-neutral-200 p-4 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-medium text-neutral-900">Wizyta mówiona (dyktowanie głosowe do karty wizyty MyDr)</p>
+                      <p className="text-xs text-neutral-500">
+                        Nagraj wypowiedź przez mikrofon (Deepgram PL) albo wklej podyktowany tekst — zostanie od razu dopisany do wizyty w MyDr.
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {!edrRecording ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-9 text-xs border-[#007865] text-[#007865] hover:bg-[#e7f4f1]"
+                          disabled={edrTranscribing || edrSaving}
+                          onClick={() => void startEdrRecording()}
+                        >
+                          {edrTranscribing ? 'Przepisywanie…' : 'Nagraj głosowo'}
+                        </Button>
+                      ) : (
+                        <Button
+                          type="button"
+                          className="h-9 text-xs bg-red-600 hover:bg-red-700 text-white"
+                          onClick={stopEdrRecording}
+                        >
+                          Zatrzymaj i przepisz
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label className="space-y-1 text-xs text-neutral-500">
+                      Pole docelowe głównego dyktowania w MyDr
+                      <select
+                        value={edrTargetField}
+                        onChange={(e) => setEdrTargetField(e.target.value as 'interview' | 'examination' | 'recommendation' | 'note')}
+                        className="h-9 w-full rounded-lg border border-neutral-200 px-3 text-xs text-neutral-900"
+                      >
+                        <option value="interview">Wywiad (interview)</option>
+                        <option value="examination">Badanie (examination)</option>
+                        <option value="recommendation">Zalecenia (recommendation)</option>
+                        <option value="note">Notatka (note)</option>
+                      </select>
+                    </label>
+                    <label className="space-y-1 text-xs text-neutral-500">
+                      Krótka notatka / podsumowanie (opcjonalnie)
+                      <input
+                        value={edrSummary}
+                        onChange={(e) => setEdrSummary(e.target.value)}
+                        placeholder="np. kontrola farmakoterapii"
+                        className="h-9 w-full rounded-lg border border-neutral-200 px-3 text-xs text-neutral-900"
+                      />
+                    </label>
+                  </div>
+
+                  <label className="block space-y-1 text-xs text-neutral-500">
+                    Główna treść podyktowana (Wywiad / transkrypcja)
+                    <textarea
+                      value={edrTranscript}
+                      onChange={(e) => setEdrTranscript(e.target.value)}
+                      rows={5}
+                      placeholder="Tutaj pojawi się transkrypcja nagrania głosowego lub wpisz podyktowany wywiad…"
+                      className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm text-neutral-900"
+                    />
+                  </label>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label className="block space-y-1 text-xs text-neutral-500">
+                      Badanie stanu psychicznego (examination — opcjonalnie)
+                      <textarea
+                        value={edrExamination}
+                        onChange={(e) => setEdrExamination(e.target.value)}
+                        rows={3}
+                        placeholder="Zorientowany auto- i allopsychicznie…"
+                        className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-xs text-neutral-900"
+                      />
+                    </label>
+                    <label className="block space-y-1 text-xs text-neutral-500">
+                      Zalecenia (recommendation — opcjonalnie)
+                      <textarea
+                        value={edrRecommendation}
+                        onChange={(e) => setEdrRecommendation(e.target.value)}
+                        rows={3}
+                        placeholder="Kontynuacja leczenia, kontrola za 4 tygodnie…"
+                        className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-xs text-neutral-900"
+                      />
+                    </label>
+                  </div>
+
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      className="h-10 text-xs"
+                      disabled={edrSaving || edrRecording || edrTranscribing}
+                      onClick={() => void saveEdrSpokenNote()}
+                    >
+                      {edrSaving ? 'Zapisywanie w EDR…' : 'Zapisz i podepnij wizytę mówioną do EDR'}
+                    </Button>
+                  </div>
+                </div>
+
+                {edrMessage && <p className="text-xs text-emerald-700">{edrMessage}</p>}
+                {edrError && <p className="text-xs text-red-600">{edrError}</p>}
+
+                {edrDetails && edrDetails.spoken_notes.length > 0 && (
+                  <div className="rounded-xl border border-neutral-100 bg-neutral-50 p-3 space-y-2">
+                    <p className="text-xs font-medium text-neutral-700">Historia podpiętych notatek mówionych ({edrDetails.spoken_notes.length})</p>
+                    {edrDetails.spoken_notes.map((note) => (
+                      <div key={note.id} className="rounded-lg bg-white border border-neutral-200 p-3 text-xs space-y-1">
+                        <div className="flex items-center justify-between text-[11px] text-neutral-500">
+                          <span>
+                            Status: <strong className={note.status === 'synced' ? 'text-[#007865]' : 'text-amber-700'}>{note.status}</strong>
+                            {note.edr_visit_id ? ` · wizyta MyDr #${note.edr_visit_id}` : ''}
+                          </span>
+                          <span>{note.created_at.slice(0, 16).replace('T', ' ')}</span>
+                        </div>
+                        {note.transcript && <p className="text-neutral-800 whitespace-pre-wrap">{note.transcript}</p>}
+                        {note.examination && <p className="text-neutral-600 whitespace-pre-wrap">Badanie: {note.examination}</p>}
+                        {note.recommendation && <p className="text-neutral-600 whitespace-pre-wrap">Zalecenia: {note.recommendation}</p>}
+                        {note.last_error && <p className="text-red-600">{note.last_error}</p>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {moving && (
         <div className="fixed inset-0 bg-black/40 z-20 flex items-center justify-center p-4">

@@ -7,6 +7,10 @@ import {
   BookingsBackupRunResult,
   BookingsBackupStatus,
   BookingsRealignResult,
+  EdrBookingDetails,
+  EdrSpokenNote,
+  EdrStatus,
+  EdrVisitLink,
   SlotHold,
   VisitType,
 } from '../types';
@@ -53,5 +57,21 @@ export interface BookingApi {
   runBookingsBackup(): Promise<BookingsBackupRunResult>;
   realignBookings(fromDate?: string): Promise<BookingsRealignResult>;
   sendVisitReportTest(dates?: string[]): Promise<{ ok: boolean; recipients: Record<string, boolean>; summary: unknown[] }>;
+  getEdrStatus(): Promise<EdrStatus>;
+  getBookingEdrDetails(bookingId: string): Promise<EdrBookingDetails>;
+  syncBookingToEdr(bookingId: string, patientId?: string): Promise<EdrVisitLink>;
+  addEdrSpokenNote(
+    bookingId: string,
+    data: {
+      transcript: string;
+      examination?: string;
+      recommendation?: string;
+      summary?: string;
+      target_field?: string;
+      patient_id?: string;
+      source?: string;
+    },
+  ): Promise<EdrSpokenNote>;
+  transcribeEdrAudio(blob: Blob): Promise<{ transcript: string }>;
   askAssistant?: (text: string) => Promise<{ reply: string; action: string; details?: unknown }>;
 }

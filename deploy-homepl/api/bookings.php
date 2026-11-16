@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/bootstrap.php';
 require_once __DIR__ . '/whatsapp.php';
+require_once __DIR__ . '/edr.php';
 
 $route = $api_route ?? api_route();
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
@@ -437,6 +438,7 @@ try {
         }
         if ($stmt->rowCount() > 0) {
             notify_owner_cancel($booking);
+            edr_after_booking_changed($pdo, $booking);
         }
         json_response($booking);
     }
@@ -456,7 +458,9 @@ try {
         }
         $stmt = $pdo->prepare("UPDATE bookings SET status = 'confirmed' WHERE management_token = ? AND status != 'cancelled'");
         $stmt->execute([$token]);
-        json_response(fetch_booking_by_token($pdo, $token));
+        $confirmedBooking = fetch_booking_by_token($pdo, $token);
+        edr_after_booking_changed($pdo, $confirmedBooking);
+        json_response($confirmedBooking);
     }
 
     if ($route === '/bookings' && $method === 'POST') {
@@ -548,6 +552,8 @@ try {
         $mailSent = send_booking_mail($booking);
         $ownerMailSent = send_owner_booking_mail($booking);
         $ownerWhatsappSent = send_owner_booking_whatsapp($booking);
+        edr_after_booking_changed($pdo, $booking);
+        $booking = fetch_booking_by_id($pdo, (string) $booking['id']) ?? $booking;
         json_response($booking + [
             'mail_sent' => $mailSent,
             'owner_mail_sent' => $ownerMailSent,
@@ -667,6 +673,8 @@ try {
         if (!$booking) {
             json_response(['error' => 'Nie udało się zapisać terminu.'], 500);
         }
+        edr_after_booking_changed($pdo, $booking);
+        $booking = fetch_booking_by_id($pdo, (string) $booking['id']) ?? $booking;
         json_response($booking);
     }
 
@@ -691,6 +699,7 @@ try {
         }
         if ($before && $before['status'] !== 'cancelled' && $stmt->rowCount() > 0) {
             notify_owner_cancel($booking);
+            edr_after_booking_changed($pdo, $booking);
         }
         json_response($booking);
     }
@@ -727,7 +736,9 @@ try {
         if ($requestError !== null) {
             json_response(['error' => $requestError], 409);
         }
-        json_response(fetch_booking_by_id($pdo, $m[1]));
+        $updated = fetch_booking_by_id($pdo, $m[1]);
+        edr_after_booking_changed($pdo, $updated);
+        json_response($updated);
     }
 
     if (preg_match('#^/admin/bookings/([^/]+)/status$#', $route, $m) && $method === 'PUT') {
@@ -748,6 +759,7 @@ try {
         if ($status === 'cancelled' && $before && $before['status'] !== 'cancelled') {
             notify_owner_cancel($booking);
         }
+        edr_after_booking_changed($pdo, $booking);
         json_response($booking);
     }
 

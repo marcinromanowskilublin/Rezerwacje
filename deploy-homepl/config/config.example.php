@@ -45,4 +45,26 @@ $config = [
     'whatsapp_token' => '',
     'whatsapp_phone_number_id' => '',
     'whatsapp_owner_number' => '48663500636',
+
+    // EDR / MyDr EDM (https://edm.mydr.pl/secure/ext_api).
+    // Sekrety wpisz wyłącznie na serwerze w config.php (nigdy w repozytorium).
+    'edr_enabled' => false,
+    'edr_base_url' => 'https://edm.mydr.pl/secure/ext_api',
+    'edr_client_id' => '',
+    'edr_client_secret' => '',
+    'edr_access_token' => '',
+    'edr_refresh_token' => '',
+    'edr_doctor_id' => 21239,
+    'edr_office_id' => 76376,
+    'edr_auto_sync_bookings' => true,
+    'edr_auto_create_patient' => true,
+    'edr_spoken_note_sync_enabled' => true,
+    'edr_default_visit_state' => 'Zaplanowana',
+    'edr_default_visit_kind' => 'Prywatna',
+    'edr_default_evisit' => true,
+    'edr_booking_note_prefix' => 'Rezerwacja online marcin-romanowski.pl',
+
+    // Transkrypcja wizyty mówionej (Deepgram API).
+    'deepgram_api_key' => '',
+    'deepgram_base_url' => 'https://api.eu.deepgram.com',
 ];

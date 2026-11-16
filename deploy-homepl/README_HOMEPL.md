@@ -24,6 +24,7 @@ Przed migracją wykonaj kopię bazy. Następnie uruchom tylko brakujące migracj
 1. `deploy-homepl/database/migrate_grafik.sql` — pola grafiku, jeśli nie były wcześniej dodane.
 2. `deploy-homepl/database/migrate_analytics.sql` — anonimowy licznik odsłon.
 3. `deploy-homepl/database/migrate_hardening.sql` — usuwa nadmiarowe pole licznika i naprawia indeks rezerwacji, jeżeli starsza wersja już je utworzyła.
+4. `deploy-homepl/database/migrate_edr.sql` — tabele `edr_visit_links` i `edr_spoken_notes` do automatycznego podpinania umówionych wizyt oraz notatek mówionych do MyDr EDM.
 
 Ponowne wgranie samego `schema.sql` nie aktualizuje struktury istniejących tabel.
 
