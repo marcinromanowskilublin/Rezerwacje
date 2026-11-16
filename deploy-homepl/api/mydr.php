@@ -415,12 +415,12 @@ function mydr_sync_booking(PDO $pdo, string $bookingId): array
             }
             $patientId = (int) $patient['id'];
             mydr_save_link($pdo, $bookingId, $patientId, null, 'pending');
-        } elseif ($link) {
-            $existing = mydr_find_existing_visit($pdo, $patientId, $booking);
-            if ($existing !== null) {
-                mydr_save_link($pdo, $bookingId, $patientId, $existing, 'synced');
-                return ['ok' => true, 'status' => 'synced', 'visit_id' => $existing];
-            }
+        }
+
+        $existing = mydr_find_existing_visit($pdo, $patientId, $booking);
+        if ($existing !== null) {
+            mydr_save_link($pdo, $bookingId, $patientId, $existing, 'synced');
+            return ['ok' => true, 'status' => 'synced', 'visit_id' => $existing];
         }
 
         $visitType = visit_type($pdo, (string) $booking['visit_type_id'], false);
@@ -489,7 +489,7 @@ function mydr_retry_candidates(PDO $pdo, int $limit): array
     );
     global $config;
     $since = trim((string) ($config['mydr_sync_since'] ?? ''));
-    $stmt->execute([preg_match('/^\d{4}-\d{2}-\d{2}/', $since) ? $since : date('Y-m-d H:i:s')]);
+    $stmt->execute([preg_match('/^\d{4}-\d{2}-\d{2}/', $since) ? $since : date('Y-m-d 00:00:00')]);
     return array_map(static fn(array $row): string => (string) $row['id'], $stmt->fetchAll());
 }
 

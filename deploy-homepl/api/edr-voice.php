@@ -303,10 +303,19 @@ function edr_voice_patient_name(array $patient): string
     return trim($first . ' ' . $last);
 }
 
+function edr_voice_exact_booking_match(array $visit, array $patient, array $booking): bool
+{
+    $expectedDate = trim((string) ($booking['booking_date'] ?? ''));
+    $expectedTime = substr(trim((string) ($booking['start_time'] ?? '')), 0, 5);
+    $expectedName = trim((string) ($booking['patient_name'] ?? ''));
+    return (string) ($visit['date'] ?? '') === $expectedDate
+        && substr((string) ($visit['timeFrom'] ?? ''), 0, 5) === $expectedTime
+        && edr_voice_normalize_name(edr_voice_patient_name($patient)) === edr_voice_normalize_name($expectedName);
+}
+
 function edr_voice_linked_candidate(array $settings, array $booking): ?array
 {
     $bookingId = trim((string) ($booking['id'] ?? ''));
-    $patientName = trim((string) ($booking['patient_name'] ?? ''));
     if ($bookingId === '' || !mydr_configured()) {
         return null;
     }
@@ -318,17 +327,14 @@ function edr_voice_linked_candidate(array $settings, array $booking): ?array
     }
     $visit = edr_voice_request($settings, 'visits/' . $visitId . '/');
     $patient = edr_voice_request($settings, 'patients/' . (int) ($visit['patient'] ?? 0) . '/');
-    $expectedSurname = mydr_split_name($patientName)['last'];
-    if (!mydr_same_surname($expectedSurname, (string) ($patient['surname'] ?? ''))) {
-        throw new RuntimeException('Podpięta wizyta EDR ma inne nazwisko niż rezerwacja. Zapis jest wstrzymany.');
-    }
+    $exact = edr_voice_exact_booking_match($visit, $patient, $booking);
     return [
         'visit_id' => $visitId,
         'patient_name' => edr_voice_patient_name($patient),
         'date' => (string) ($visit['date'] ?? ''),
         'time' => substr((string) ($visit['timeFrom'] ?? ''), 0, 5),
         'state' => (string) ($visit['state'] ?? ''),
-        'exact_name_match' => true,
+        'exact_name_match' => $exact,
         'latest_modification' => (string) ($visit['latest_modification'] ?? ''),
     ];
 }
