@@ -65,6 +65,7 @@ CREATE TABLE IF NOT EXISTS `payments` (
   `booking_id` varchar(36) NOT NULL,
   `provider` varchar(50) NOT NULL,
   `external_payment_id` varchar(255) DEFAULT NULL,
+  `checkout_url` varchar(1024) DEFAULT NULL,
   `payment_method` varchar(50) NOT NULL,
   `amount` decimal(10,2) NOT NULL,
   `currency` varchar(3) NOT NULL DEFAULT 'PLN',

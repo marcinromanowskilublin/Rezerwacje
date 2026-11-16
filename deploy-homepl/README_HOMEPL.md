@@ -31,7 +31,8 @@ Przed migracją wykonaj kopię bazy. Następnie uruchom tylko brakujące migracj
 8. `deploy-homepl/database/migrate_contact_form.sql` — zapisy z publicznego formularza kontaktowego.
 9. `deploy-homepl/database/migrate_psychiatric_form.sql` — szyfrowane zapisy publicznego formularza wywiadu ogólnopsychiatrycznego.
 10. `deploy-homepl/database/migrate_psychiatric_form_optional.sql` — dopuszcza brak zgody jako `NULL` w zapisach formularza psychiatrycznego.
-11. `deploy-homepl/database/migrate_mydr.sql` — tokeny MyDr i powiązania rezerwacji z wizytami w MyDr.
+11. `deploy-homepl/database/migrate_payment_checkout_url.sql` — trwały link do aktywnej płatności online, żeby można było bezpiecznie wrócić do checkoutu.
+12. `deploy-homepl/database/migrate_mydr.sql` — tokeny MyDr i powiązania rezerwacji z wizytami w MyDr.
 
 Ponowne wgranie samego `schema.sql` nie aktualizuje struktury istniejących tabel.
 

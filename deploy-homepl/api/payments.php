@@ -208,6 +208,16 @@ function payments_open_attempt_response(array $payment): array
 {
     $provider = (string) ($payment['provider'] ?? '');
     $externalId = (string) ($payment['external_payment_id'] ?? '');
+    $checkoutUrl = trim((string) ($payment['checkout_url'] ?? ''));
+    if ($checkoutUrl !== '') {
+        return [
+            'ok' => true,
+            'status' => 'pending',
+            'payment_id' => (string) $payment['id'],
+            'payment_url' => $checkoutUrl,
+            'reused' => true,
+        ];
+    }
     if ($provider === 'przelewy24' && substr($externalId, 0, 6) === 'token:') {
         return [
             'ok' => true,
@@ -314,14 +324,15 @@ function payments_register_przelewy24(PDO $pdo, array $booking): array
         return ['ok' => false, 'error' => 'Nie udało się rozpocząć płatności.'];
     }
 
-    $pdo->prepare('UPDATE payments SET external_payment_id = ?, status = ? WHERE id = ?')->execute(['token:' . $token, 'pending', $paymentId]);
+    $checkoutUrl = rtrim(payments_p24_base_url(), '/') . '/trnRequest/' . rawurlencode($token);
+    $pdo->prepare('UPDATE payments SET external_payment_id = ?, checkout_url = ?, status = ? WHERE id = ?')->execute(['token:' . $token, $checkoutUrl, 'pending', $paymentId]);
     payments_mark_booking_payment_pending($pdo, $booking);
 
     return [
         'ok' => true,
         'status' => 'pending',
         'payment_id' => $paymentId,
-        'payment_url' => rtrim(payments_p24_base_url(), '/') . '/trnRequest/' . rawurlencode($token),
+        'payment_url' => $checkoutUrl,
     ];
 }
 
@@ -514,11 +525,8 @@ function payments_register_payu(PDO $pdo, array $booking): array
         return ['ok' => false, 'error' => 'Nie udało się rozpocząć płatności PayU.'];
     }
 
-    $encodedRedirect = 'checkout:' . rawurlencode($redirectUri);
-    $externalId = strlen($encodedRedirect) <= 255
-        ? $encodedRedirect
-        : ($orderId !== '' ? 'order:' . $orderId : 'redirect:' . substr(hash('sha256', $redirectUri), 0, 32));
-    $pdo->prepare('UPDATE payments SET external_payment_id = ?, status = ? WHERE id = ?')->execute([$externalId, 'pending', $paymentId]);
+    $externalId = $orderId !== '' ? 'order:' . $orderId : 'redirect:' . substr(hash('sha256', $redirectUri), 0, 32);
+    $pdo->prepare('UPDATE payments SET external_payment_id = ?, checkout_url = ?, status = ? WHERE id = ?')->execute([$externalId, $redirectUri, 'pending', $paymentId]);
     payments_mark_booking_payment_pending($pdo, $booking);
 
     return [
@@ -712,9 +720,9 @@ function payments_verify_przelewy24_notification(PDO $pdo, array $data): array
         if ((string) ($payment['status'] ?? '') === 'paid') {
             return ['ok' => true, 'already_paid' => true];
         }
-        $pdo->prepare("UPDATE payments SET status = 'failed', external_payment_id = ? WHERE id = ? AND status != 'paid'")
-            ->execute(['order:' . $orderId, $sessionId]);
-        $pdo->prepare("UPDATE bookings SET payment_status = 'failed' WHERE id = ? AND payment_status != 'paid' AND status NOT IN ('cancelled', 'completed', 'no_show')")
+        $pdo->prepare("UPDATE payments SET status = 'pending' WHERE id = ? AND status != 'paid'")
+            ->execute([$sessionId]);
+        $pdo->prepare("UPDATE bookings SET payment_status = 'pending' WHERE id = ? AND payment_status != 'paid' AND status NOT IN ('cancelled', 'completed', 'no_show')")
             ->execute([(string) $payment['booking_id']]);
         error_log('Przelewy24 verify failed: ' . json_encode($verify, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
         return ['ok' => false, 'error' => 'Nie udało się zweryfikować płatności.'];
