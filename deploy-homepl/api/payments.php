@@ -176,7 +176,19 @@ function payments_create_local_payment(PDO $pdo, array $booking, int $amountGros
 function payments_open_attempt_minutes(): int
 {
     global $config;
-    return max(5, min(120, (int) ($config['payment_time_limit_minutes'] ?? 30) + 5));
+    return max(1, min(99, (int) ($config['payment_time_limit_minutes'] ?? 30)));
+}
+
+function payments_gateway_may_have_created_order(array $result): bool
+{
+    $http = (int) ($result['http_code'] ?? 0);
+    return $http === 0 || ($http >= 200 && $http < 400) || $http >= 500;
+}
+
+function payments_attempt_is_recent(array $payment): bool
+{
+    $created = strtotime((string) ($payment['created_at'] ?? ''));
+    return $created !== false && $created >= time() - payments_open_attempt_minutes() * 60;
 }
 
 function payments_find_open_attempt(PDO $pdo, array $booking, int $amountGrosz, string $currency, string $provider): ?array
@@ -190,7 +202,10 @@ function payments_find_open_attempt(PDO $pdo, array $booking, int $amountGrosz, 
            AND status = 'pending'
            AND amount = ?
            AND currency = ?
-           AND created_at >= DATE_SUB(NOW(), INTERVAL " . payments_open_attempt_minutes() . " MINUTE)
+           AND (
+             created_at >= DATE_SUB(NOW(), INTERVAL " . payments_open_attempt_minutes() . " MINUTE)
+             OR (? = 'przelewy24' AND external_payment_id LIKE 'order:%')
+           )
          ORDER BY created_at DESC
          LIMIT 1"
     );
@@ -199,6 +214,7 @@ function payments_find_open_attempt(PDO $pdo, array $booking, int $amountGrosz, 
         $provider,
         number_format($amountGrosz / 100, 2, '.', ''),
         $currency,
+        $provider,
     ]);
     $row = $stmt->fetch();
     return $row ?: null;
@@ -209,7 +225,15 @@ function payments_open_attempt_response(array $payment): array
     $provider = (string) ($payment['provider'] ?? '');
     $externalId = (string) ($payment['external_payment_id'] ?? '');
     $checkoutUrl = trim((string) ($payment['checkout_url'] ?? ''));
-    if ($checkoutUrl !== '') {
+    if ($provider === 'przelewy24' && substr($externalId, 0, 6) === 'order:') {
+        return [
+            'ok' => false,
+            'status' => 'pending',
+            'http_status' => 409,
+            'error' => 'Płatność jest już przekazana do weryfikacji. Zaczekaj chwilę na potwierdzenie z Przelewy24.',
+        ];
+    }
+    if ($checkoutUrl !== '' && payments_attempt_is_recent($payment)) {
         return [
             'ok' => true,
             'status' => 'pending',
@@ -218,7 +242,7 @@ function payments_open_attempt_response(array $payment): array
             'reused' => true,
         ];
     }
-    if ($provider === 'przelewy24' && substr($externalId, 0, 6) === 'token:') {
+    if ($provider === 'przelewy24' && substr($externalId, 0, 6) === 'token:' && payments_attempt_is_recent($payment)) {
         return [
             'ok' => true,
             'status' => 'pending',
@@ -227,7 +251,7 @@ function payments_open_attempt_response(array $payment): array
             'reused' => true,
         ];
     }
-    if ($provider === 'payu' && substr($externalId, 0, 9) === 'checkout:') {
+    if ($provider === 'payu' && substr($externalId, 0, 9) === 'checkout:' && payments_attempt_is_recent($payment)) {
         return [
             'ok' => true,
             'status' => 'pending',
@@ -302,7 +326,7 @@ function payments_register_przelewy24(PDO $pdo, array $booking): array
         'language' => 'pl',
         'urlReturn' => public_app_url('manage/' . rawurlencode((string) ($booking['management_token'] ?? '')) . '?payment=return'),
         'urlStatus' => payments_public_api_url('payments/przelewy24/status'),
-        'timeLimit' => max(0, min(99, (int) ($config['payment_time_limit_minutes'] ?? 30))),
+        'timeLimit' => payments_open_attempt_minutes(),
         'channel' => (int) ($config['przelewy24_channel'] ?? 16),
         'waitForResult' => true,
     ];
@@ -317,7 +341,12 @@ function payments_register_przelewy24(PDO $pdo, array $booking): array
     $result = payments_p24_post('/api/v1/transaction/register', $body);
     $payload = $result['payload'] ?? [];
     $token = is_array($payload) ? (string) ($payload['data']['token'] ?? $payload['token'] ?? '') : '';
-    if (empty($result['ok']) || $token === '') {
+    if ($token === '') {
+        if (payments_gateway_may_have_created_order($result)) {
+            payments_mark_booking_payment_pending($pdo, $booking);
+            error_log('Przelewy24 register uncertain: ' . json_encode($result, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+            return ['ok' => false, 'http_status' => 502, 'error' => 'Nie udało się potwierdzić linku płatności. Spróbuj ponownie za chwilę.'];
+        }
         $pdo->prepare("UPDATE payments SET status = 'failed' WHERE id = ? AND status != 'paid'")->execute([$paymentId]);
         $pdo->prepare("UPDATE bookings SET payment_status = 'failed' WHERE id = ? AND payment_status != 'paid' AND status NOT IN ('cancelled', 'completed', 'no_show')")->execute([(string) $booking['id']]);
         error_log('Przelewy24 register failed: ' . json_encode($result, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
@@ -497,6 +526,7 @@ function payments_register_payu(PDO $pdo, array $booking): array
         'extOrderId' => $paymentId,
         'currencyCode' => $currency,
         'totalAmount' => (string) $amountGrosz,
+        'validityTime' => date('c', time() + payments_open_attempt_minutes() * 60),
         'buyer' => [
             'email' => (string) ($booking['patient_email'] ?? ''),
             'phone' => preg_replace('/\D+/', '', (string) ($booking['patient_phone'] ?? '')) ?: '',
@@ -519,6 +549,13 @@ function payments_register_payu(PDO $pdo, array $booking): array
         $redirectUri = (string) $result['headers']['location'];
     }
     if (empty($result['ok']) || $redirectUri === '') {
+        if ($orderId !== '' || payments_gateway_may_have_created_order($result)) {
+            $externalId = $orderId !== '' ? 'order:' . $orderId : 'redirect:' . substr(hash('sha256', json_encode($result, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: $paymentId), 0, 32);
+            $pdo->prepare('UPDATE payments SET external_payment_id = ?, status = ? WHERE id = ? AND status != ?')->execute([$externalId, 'pending', $paymentId, 'paid']);
+            payments_mark_booking_payment_pending($pdo, $booking);
+            error_log('PayU order create uncertain: ' . json_encode($result, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+            return ['ok' => false, 'http_status' => 502, 'error' => 'Nie udało się potwierdzić linku płatności PayU. Spróbuj ponownie za chwilę.'];
+        }
         $pdo->prepare("UPDATE payments SET status = 'failed' WHERE id = ? AND status != 'paid'")->execute([$paymentId]);
         $pdo->prepare("UPDATE bookings SET payment_status = 'failed' WHERE id = ? AND payment_status != 'paid' AND status NOT IN ('cancelled', 'completed', 'no_show')")->execute([(string) $booking['id']]);
         error_log('PayU order create failed: ' . json_encode($result, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
@@ -720,8 +757,8 @@ function payments_verify_przelewy24_notification(PDO $pdo, array $data): array
         if ((string) ($payment['status'] ?? '') === 'paid') {
             return ['ok' => true, 'already_paid' => true];
         }
-        $pdo->prepare("UPDATE payments SET status = 'pending' WHERE id = ? AND status != 'paid'")
-            ->execute([$sessionId]);
+        $pdo->prepare("UPDATE payments SET status = 'pending', external_payment_id = ? WHERE id = ? AND status != 'paid'")
+            ->execute(['order:' . $orderId, $sessionId]);
         $pdo->prepare("UPDATE bookings SET payment_status = 'pending' WHERE id = ? AND payment_status != 'paid' AND status NOT IN ('cancelled', 'completed', 'no_show')")
             ->execute([(string) $payment['booking_id']]);
         error_log('Przelewy24 verify failed: ' . json_encode($verify, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));

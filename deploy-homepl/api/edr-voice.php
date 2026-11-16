@@ -129,6 +129,25 @@ function edr_voice_write_tokens(array $settings, array $tokens): void
     }
 }
 
+function edr_voice_has_auth_tokens(array $settings): bool
+{
+    $tokens = edr_voice_read_tokens($settings);
+    if ($tokens['access_token'] !== '' || $tokens['refresh_token'] !== '') {
+        return true;
+    }
+    if (!function_exists('mydr_configured') || !mydr_configured()) {
+        return false;
+    }
+    try {
+        $row = mydr_token_row(db());
+        return is_array($row)
+            && (trim((string) ($row['access_token'] ?? '')) !== '' || trim((string) ($row['refresh_token'] ?? '')) !== '');
+    } catch (Throwable $error) {
+        error_log('EDR status token check failed: ' . $error->getMessage());
+        return false;
+    }
+}
+
 function edr_voice_curl(
     string $url,
     string $method,
@@ -532,12 +551,13 @@ function edr_voice_handle(): void
 
     try {
         if ($method === 'GET' && $action === 'status') {
+            $hasAuthTokens = edr_voice_has_auth_tokens($settings);
             json_response([
                 'enabled' => $settings['enabled'],
                 'configured' => $settings['enabled']
                     && $settings['client_id'] !== ''
                     && $settings['client_secret'] !== ''
-                    && ($settings['access_token'] !== '' || $settings['refresh_token'] !== '')
+                    && $hasAuthTokens
                     && $settings['doctor_id'] > 0
                     && $settings['office_id'] > 0
                     && $settings['deepgram_key'] !== '',

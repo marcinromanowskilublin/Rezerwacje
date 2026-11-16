@@ -67,7 +67,8 @@ function contact_center_iso(?string $value): ?string
     if ($value === null || trim($value) === '') {
         return null;
     }
-    return str_replace(' ', 'T', trim($value)) . 'Z';
+    $date = DateTimeImmutable::createFromFormat('Y-m-d H:i:s', trim($value), new DateTimeZone('Europe/Warsaw'));
+    return $date instanceof DateTimeImmutable ? $date->format('c') : str_replace(' ', 'T', trim($value));
 }
 
 function contact_center_limit(): int
