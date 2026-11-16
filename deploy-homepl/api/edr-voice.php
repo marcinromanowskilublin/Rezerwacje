@@ -470,7 +470,7 @@ function edr_voice_save(array $settings, array $input): array
     if (
         (string) ($visit['date'] ?? '') !== $expectedDate
         || substr((string) ($visit['timeFrom'] ?? ''), 0, 5) !== $expectedTime
-        || !mydr_same_surname(mydr_split_name($expectedName)['last'], (string) ($patient['surname'] ?? ''))
+        || edr_voice_normalize_name($actualName) !== edr_voice_normalize_name($expectedName)
     ) {
         throw new RuntimeException('Wybrana wizyta EDR nie odpowiada danym pacjenta i terminu.');
     }

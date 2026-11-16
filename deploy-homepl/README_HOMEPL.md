@@ -39,6 +39,30 @@ Ponowne wgranie samego `schema.sql` nie aktualizuje struktury istniejących tabe
    Jeśli chcesz wykluczyć własne wejścia z licznika odwiedzin, uzupełnij `analytics_excluded_ips` (np. Twój publiczny IP).
 4. Wgraj też `deploy-homepl/api/.htaccess`, żeby adresy `/rezerwacja/api/visit-types` szły do `index.php`.
 
+## MyDr EDM: wizyty zakładane automatycznie
+
+Każda rezerwacja ze strony i z panelu trafia do kalendarza MyDr jako wizyta prywatna
+lekarza Marcin Romanowski (`mydr_doctor_id` 21239, gabinet `mydr_office_id` 76376).
+Potwierdzenie, opłacenie, przełożenie i anulowanie aktualizują tę samą wizytę.
+Synchronizacja dzieje się po wysłaniu odpowiedzi do pacjenta, więc rezerwacja nie czeka na MyDr.
+
+Pacjent jest szukany w MyDr po e-mailu, a potem po telefonie, i dopinany tylko przy zgodnym
+nazwisku. Brak dopasowania zakłada nową kartę (imię, nazwisko, e-mail, telefon). Kilka pasujących
+kart daje status `needs_review` i wizyta nie powstaje, dopóki nie wskażesz karty ręcznie.
+
+1. Wgraj migrację `deploy-homepl/database/migrate_mydr.sql`.
+2. W `config.php` ustaw `mydr_enabled => true`, `mydr_client_id`, `mydr_client_secret`
+   i świeży `mydr_refresh_token` (MyDr → Ustawienia placówki → Dostęp do API → Wygeneruj).
+   Po pierwszym odświeżeniu tokeny są rotowane i trzymane w tabeli `mydr_tokens`;
+   stary refresh token z config.php przestaje działać i nie należy go używać nigdzie indziej.
+3. Ustaw `mydr_sync_since` na dzień wdrożenia. Starsze rezerwacje nie są dosyłane automatycznie.
+4. Sprawdź połączenie: `GET /api/admin/mydr/status` (zalogowany admin).
+5. Ponowienie ręczne: `POST /api/admin/mydr/sync` z `{"booking_id": "..."}`; przy `needs_review`
+   dodaj `"patient_id"` wybranej karty MyDr. Bez parametrów ponawia błędy z przyszłych terminów.
+   Błędy są też ponawiane automatycznie co 15 minut przy ruchu na API.
+
+Żeby zresetować tokeny, usuń wiersz z `mydr_tokens` i wpisz nowy refresh token do `config.php`.
+
 ## 5. Backup zapisów co 6 godzin
 System zapisuje kopię tabeli `bookings` automatycznie (co 6h) przy normalnym ruchu API.
 
