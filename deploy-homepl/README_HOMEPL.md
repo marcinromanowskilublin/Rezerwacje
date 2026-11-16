@@ -28,7 +28,10 @@ Przed migracją wykonaj kopię bazy. Następnie uruchom tylko brakujące migracj
 5. `deploy-homepl/database/migrate_whatsapp_threads.sql` — szyfrowany, 30-dniowy magazyn wątków WhatsApp.
 6. Jeśli punkt 5 był wykonany przed pierwszym importem, uruchom jednorazowo `deploy-homepl/database/migrate_whatsapp_encrypted_metadata.sql`. Migracja zatrzyma się, gdy tabela zawiera już wiadomości.
 7. `deploy-homepl/database/migrate_contact_center.sql` — karta telefonu/CDR, wiadomości telefoniczne i intencje do obsługi w panelu.
-8. `deploy-homepl/database/migrate_mydr.sql` — tokeny MyDr i powiązania rezerwacji z wizytami w MyDr.
+8. `deploy-homepl/database/migrate_contact_form.sql` — zapisy z publicznego formularza kontaktowego.
+9. `deploy-homepl/database/migrate_psychiatric_form.sql` — szyfrowane zapisy publicznego formularza wywiadu ogólnopsychiatrycznego.
+10. `deploy-homepl/database/migrate_psychiatric_form_optional.sql` — dopuszcza brak zgody jako `NULL` w zapisach formularza psychiatrycznego.
+11. `deploy-homepl/database/migrate_mydr.sql` — tokeny MyDr i powiązania rezerwacji z wizytami w MyDr.
 
 Ponowne wgranie samego `schema.sql` nie aktualizuje struktury istniejących tabel.
 
