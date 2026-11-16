@@ -173,14 +173,79 @@ function payments_create_local_payment(PDO $pdo, array $booking, int $amountGros
     return $paymentId;
 }
 
+function payments_open_attempt_minutes(): int
+{
+    global $config;
+    return max(5, min(120, (int) ($config['payment_time_limit_minutes'] ?? 30) + 5));
+}
+
+function payments_find_open_attempt(PDO $pdo, array $booking, int $amountGrosz, string $currency, string $provider): ?array
+{
+    $stmt = $pdo->prepare(
+        "SELECT *
+         FROM payments
+         WHERE booking_id = ?
+           AND provider = ?
+           AND payment_method = 'online'
+           AND status = 'pending'
+           AND amount = ?
+           AND currency = ?
+           AND created_at >= DATE_SUB(NOW(), INTERVAL " . payments_open_attempt_minutes() . " MINUTE)
+         ORDER BY created_at DESC
+         LIMIT 1"
+    );
+    $stmt->execute([
+        (string) $booking['id'],
+        $provider,
+        number_format($amountGrosz / 100, 2, '.', ''),
+        $currency,
+    ]);
+    $row = $stmt->fetch();
+    return $row ?: null;
+}
+
+function payments_open_attempt_response(array $payment): array
+{
+    $provider = (string) ($payment['provider'] ?? '');
+    $externalId = (string) ($payment['external_payment_id'] ?? '');
+    if ($provider === 'przelewy24' && substr($externalId, 0, 6) === 'token:') {
+        return [
+            'ok' => true,
+            'status' => 'pending',
+            'payment_id' => (string) $payment['id'],
+            'payment_url' => rtrim(payments_p24_base_url(), '/') . '/trnRequest/' . rawurlencode(substr($externalId, 6)),
+            'reused' => true,
+        ];
+    }
+    if ($provider === 'payu' && substr($externalId, 0, 9) === 'checkout:') {
+        return [
+            'ok' => true,
+            'status' => 'pending',
+            'payment_id' => (string) $payment['id'],
+            'payment_url' => rawurldecode(substr($externalId, 9)),
+            'reused' => true,
+        ];
+    }
+    return [
+        'ok' => false,
+        'status' => 'pending',
+        'http_status' => 409,
+        'error' => 'Płatność już została rozpoczęta. Wróć do ostatniego linku płatności albo spróbuj ponownie za kilka minut.',
+    ];
+}
+
 function payments_mark_booking_payment_pending(PDO $pdo, array $booking): void
 {
-    $currentStatus = (string) ($booking['status'] ?? 'pending');
-    $nextStatus = payments_booking_requires_payment($pdo, $booking) && $currentStatus === 'pending'
-        ? 'pending_payment'
-        : $currentStatus;
-    $stmt = $pdo->prepare('UPDATE bookings SET payment_status = ?, status = ? WHERE id = ? AND status != ?');
-    $stmt->execute(['pending', $nextStatus, (string) $booking['id'], 'cancelled']);
+    $requiresPayment = payments_booking_requires_payment($pdo, $booking);
+    $stmt = $pdo->prepare(
+        "UPDATE bookings
+         SET payment_status = 'pending',
+             status = CASE WHEN ? = 1 AND status = 'pending' THEN 'pending_payment' ELSE status END
+         WHERE id = ?
+           AND status NOT IN ('cancelled', 'completed', 'no_show')
+           AND payment_status != 'paid'"
+    );
+    $stmt->execute([$requiresPayment ? 1 : 0, (string) $booking['id']]);
 }
 
 function payments_register_przelewy24(PDO $pdo, array $booking): array
@@ -200,6 +265,11 @@ function payments_register_przelewy24(PDO $pdo, array $booking): array
     $currency = 'PLN';
     if ($amountGrosz <= 0) {
         return ['ok' => false, 'error' => 'Brak kwoty do płatności.'];
+    }
+
+    $openAttempt = payments_find_open_attempt($pdo, $booking, $amountGrosz, $currency, 'przelewy24');
+    if ($openAttempt !== null) {
+        return payments_open_attempt_response($openAttempt);
     }
 
     $merchantId = (int) ($config['przelewy24_merchant_id'] ?? 0);
@@ -239,7 +309,7 @@ function payments_register_przelewy24(PDO $pdo, array $booking): array
     $token = is_array($payload) ? (string) ($payload['data']['token'] ?? $payload['token'] ?? '') : '';
     if (empty($result['ok']) || $token === '') {
         $pdo->prepare("UPDATE payments SET status = 'failed' WHERE id = ? AND status != 'paid'")->execute([$paymentId]);
-        $pdo->prepare("UPDATE bookings SET payment_status = 'failed' WHERE id = ? AND payment_status != 'paid'")->execute([(string) $booking['id']]);
+        $pdo->prepare("UPDATE bookings SET payment_status = 'failed' WHERE id = ? AND payment_status != 'paid' AND status NOT IN ('cancelled', 'completed', 'no_show')")->execute([(string) $booking['id']]);
         error_log('Przelewy24 register failed: ' . json_encode($result, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
         return ['ok' => false, 'error' => 'Nie udało się rozpocząć płatności.'];
     }
@@ -392,10 +462,15 @@ function payments_register_payu(PDO $pdo, array $booking): array
         return ['ok' => false, 'error' => 'Brak kwoty do płatności.'];
     }
     $currency = 'PLN';
+    $openAttempt = payments_find_open_attempt($pdo, $booking, $amountGrosz, $currency, 'payu');
+    if ($openAttempt !== null) {
+        return payments_open_attempt_response($openAttempt);
+    }
+
     $paymentId = payments_create_local_payment($pdo, $booking, $amountGrosz, $currency, 'payu');
     $token = payments_payu_access_token();
     if (empty($token['ok'])) {
-        $pdo->prepare("UPDATE payments SET status = 'failed' WHERE id = ?")->execute([$paymentId]);
+        $pdo->prepare("UPDATE payments SET status = 'failed' WHERE id = ? AND status != 'paid'")->execute([$paymentId]);
         return ['ok' => false, 'error' => (string) ($token['error'] ?? 'Nie udało się połączyć z PayU.')];
     }
 
@@ -434,12 +509,15 @@ function payments_register_payu(PDO $pdo, array $booking): array
     }
     if (empty($result['ok']) || $redirectUri === '') {
         $pdo->prepare("UPDATE payments SET status = 'failed' WHERE id = ? AND status != 'paid'")->execute([$paymentId]);
-        $pdo->prepare("UPDATE bookings SET payment_status = 'failed' WHERE id = ? AND payment_status != 'paid'")->execute([(string) $booking['id']]);
+        $pdo->prepare("UPDATE bookings SET payment_status = 'failed' WHERE id = ? AND payment_status != 'paid' AND status NOT IN ('cancelled', 'completed', 'no_show')")->execute([(string) $booking['id']]);
         error_log('PayU order create failed: ' . json_encode($result, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
         return ['ok' => false, 'error' => 'Nie udało się rozpocząć płatności PayU.'];
     }
 
-    $externalId = $orderId !== '' ? 'order:' . $orderId : 'redirect:' . substr(hash('sha256', $redirectUri), 0, 32);
+    $encodedRedirect = 'checkout:' . rawurlencode($redirectUri);
+    $externalId = strlen($encodedRedirect) <= 255
+        ? $encodedRedirect
+        : ($orderId !== '' ? 'order:' . $orderId : 'redirect:' . substr(hash('sha256', $redirectUri), 0, 32));
     $pdo->prepare('UPDATE payments SET external_payment_id = ?, status = ? WHERE id = ?')->execute([$externalId, 'pending', $paymentId]);
     payments_mark_booking_payment_pending($pdo, $booking);
 
@@ -555,14 +633,14 @@ function payments_handle_payu_notification(PDO $pdo, string $rawBody, array $dat
     if (in_array($status, ['CANCELED', 'REJECTED'], true)) {
         $pdo->prepare("UPDATE payments SET status = 'failed', external_payment_id = ? WHERE id = ? AND status != 'paid'")
             ->execute([$orderId !== '' ? 'order:' . $orderId : (string) ($payment['external_payment_id'] ?? ''), $paymentId]);
-        $pdo->prepare("UPDATE bookings SET payment_status = 'failed' WHERE id = ? AND payment_status != 'paid'")
+        $pdo->prepare("UPDATE bookings SET payment_status = 'failed' WHERE id = ? AND payment_status != 'paid' AND status NOT IN ('cancelled', 'completed', 'no_show')")
             ->execute([(string) $payment['booking_id']]);
         return ['ok' => true];
     }
 
     $pdo->prepare("UPDATE payments SET status = 'pending', external_payment_id = ? WHERE id = ? AND status != 'paid'")
         ->execute([$orderId !== '' ? 'order:' . $orderId : (string) ($payment['external_payment_id'] ?? ''), $paymentId]);
-    $pdo->prepare("UPDATE bookings SET payment_status = 'pending' WHERE id = ? AND payment_status != 'paid'")
+    $pdo->prepare("UPDATE bookings SET payment_status = 'pending' WHERE id = ? AND payment_status != 'paid' AND status NOT IN ('cancelled', 'completed', 'no_show')")
         ->execute([(string) $payment['booking_id']]);
     return ['ok' => true];
 }
@@ -636,7 +714,7 @@ function payments_verify_przelewy24_notification(PDO $pdo, array $data): array
         }
         $pdo->prepare("UPDATE payments SET status = 'failed', external_payment_id = ? WHERE id = ? AND status != 'paid'")
             ->execute(['order:' . $orderId, $sessionId]);
-        $pdo->prepare("UPDATE bookings SET payment_status = 'failed' WHERE id = ? AND payment_status != 'paid'")
+        $pdo->prepare("UPDATE bookings SET payment_status = 'failed' WHERE id = ? AND payment_status != 'paid' AND status NOT IN ('cancelled', 'completed', 'no_show')")
             ->execute([(string) $payment['booking_id']]);
         error_log('Przelewy24 verify failed: ' . json_encode($verify, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
         return ['ok' => false, 'error' => 'Nie udało się zweryfikować płatności.'];
@@ -692,10 +770,25 @@ function payment_handle_route(string $route, string $method): bool
         if (!$booking) {
             json_response(['ok' => false, 'error' => 'Nie znaleziono rezerwacji.'], 404);
         }
-        $result = payment_gateway_provider() === 'payu'
-            ? payments_register_payu($pdo, $booking)
-            : payments_register_przelewy24($pdo, $booking);
-        json_response($result, !empty($result['ok']) ? 200 : 400);
+        $lockName = 'rez_payment_b_' . substr(hash('sha256', (string) $booking['id']), 0, 32);
+        $lock = $pdo->prepare('SELECT GET_LOCK(?, 20)');
+        $lock->execute([$lockName]);
+        if ((int) $lock->fetchColumn() !== 1) {
+            json_response(['ok' => false, 'error' => 'Płatność jest już uruchamiana. Spróbuj ponownie za chwilę.'], 409);
+        }
+        try {
+            $booking = payments_fetch_booking_by_token($pdo, $token);
+            if (!$booking) {
+                $result = ['ok' => false, 'error' => 'Nie znaleziono rezerwacji.', 'http_status' => 404];
+            } else {
+                $result = payment_gateway_provider() === 'payu'
+                    ? payments_register_payu($pdo, $booking)
+                    : payments_register_przelewy24($pdo, $booking);
+            }
+        } finally {
+            $pdo->prepare('SELECT RELEASE_LOCK(?)')->execute([$lockName]);
+        }
+        json_response($result, !empty($result['ok']) ? 200 : (int) ($result['http_status'] ?? 400));
     }
 
     if ($route === '/payments/payu/notify') {

@@ -318,7 +318,7 @@ function mydr_visit_create_payload(array $booking, ?array $visitType): array
 }
 
 // Ponowienie po timeoucie nie może założyć drugiej wizyty, jeśli MyDr przyjął pierwszą.
-function mydr_find_existing_visit(PDO $pdo, int $patientId, array $booking): ?int
+function mydr_find_existing_visit(PDO $pdo, int $patientId, array $booking): array
 {
     global $config;
     $date = (string) $booking['booking_date'];
@@ -328,17 +328,17 @@ function mydr_find_existing_visit(PDO $pdo, int $patientId, array $booking): ?in
         'page_size' => 50,
     ]));
     if ($response['status'] !== 200) {
-        return null;
+        return ['ok' => false, 'visit_id' => null, 'error' => mydr_api_error($response)];
     }
     foreach ((array) ($response['data']['results'] ?? []) as $visit) {
         if (is_array($visit)
             && (int) ($visit['doctor'] ?? 0) === (int) $config['mydr_doctor_id']
             && hm((string) ($visit['timeFrom'] ?? '')) === hm((string) $booking['start_time'])
             && (string) ($visit['state'] ?? '') !== 'Anulowana') {
-            return (int) $visit['id'];
+            return ['ok' => true, 'visit_id' => (int) $visit['id']];
         }
     }
-    return null;
+    return ['ok' => true, 'visit_id' => null];
 }
 
 function mydr_link(PDO $pdo, string $bookingId): ?array
@@ -418,15 +418,21 @@ function mydr_sync_booking(PDO $pdo, string $bookingId): array
         }
 
         $existing = mydr_find_existing_visit($pdo, $patientId, $booking);
-        if ($existing !== null) {
-            $response = mydr_api($pdo, 'PATCH', 'visits/' . $existing . '/', mydr_visit_update_payload($booking));
+        if (empty($existing['ok'])) {
+            $error = (string) ($existing['error'] ?? 'Nie udało się sprawdzić istniejących wizyt MyDr.');
+            mydr_save_link($pdo, $bookingId, $patientId, null, 'error', $error);
+            return ['ok' => false, 'status' => 'error', 'error' => $error];
+        }
+        $existingVisitId = $existing['visit_id'] !== null ? (int) $existing['visit_id'] : null;
+        if ($existingVisitId !== null) {
+            $response = mydr_api($pdo, 'PATCH', 'visits/' . $existingVisitId . '/', mydr_visit_update_payload($booking));
             if ($response['status'] !== 200) {
                 $error = mydr_api_error($response);
-                mydr_save_link($pdo, $bookingId, $patientId, $existing, 'error', $error);
+                mydr_save_link($pdo, $bookingId, $patientId, $existingVisitId, 'error', $error);
                 return ['ok' => false, 'status' => 'error', 'error' => $error];
             }
-            mydr_save_link($pdo, $bookingId, $patientId, $existing, 'synced');
-            return ['ok' => true, 'status' => 'synced', 'visit_id' => $existing];
+            mydr_save_link($pdo, $bookingId, $patientId, $existingVisitId, 'synced');
+            return ['ok' => true, 'status' => 'synced', 'visit_id' => $existingVisitId];
         }
 
         $visitType = visit_type($pdo, (string) $booking['visit_type_id'], false);
