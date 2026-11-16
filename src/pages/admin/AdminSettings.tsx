@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { addDays, format } from 'date-fns';
 import { Button } from '../../components/ui/Button';
 import { bookingApi } from '../../services/bookingApi';
-import { BookingsBackupStatus } from '../../types';
+import { BookingsBackupStatus, EdrStatus } from '../../types';
 import AdminGate from './AdminGate';
 
 interface AdminAutomationSettings {
@@ -110,6 +110,7 @@ function SettingsPanel() {
   const [sendingReport, setSendingReport] = useState(false);
   const [reportMessage, setReportMessage] = useState<string | null>(null);
   const [reportError, setReportError] = useState<string | null>(null);
+  const [edrStatus, setEdrStatus] = useState<EdrStatus | null>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -137,6 +138,7 @@ function SettingsPanel() {
 
   useEffect(() => {
     void loadBackupStatus();
+    void bookingApi.getEdrStatus().then(setEdrStatus).catch(() => undefined);
   }, []);
 
   const runBackupNow = async () => {
@@ -194,9 +196,33 @@ function SettingsPanel() {
       <div>
         <h1 className="text-3xl font-light text-neutral-900 mb-2">Ustawienia</h1>
         <p className="text-neutral-500 text-sm">
-          Opcje automatyzacji przypomnień i potwierdzeń wizyt.
+          Opcje automatyzacji przypomnień, integracji EDR (MyDr EDM) i potwierdzeń wizyt.
         </p>
       </div>
+
+      <section className="space-y-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-lg font-light text-neutral-900">Integracja EDR — MyDr EDM (wizyty umówione i mówione)</h2>
+          <span
+            className={`rounded-full border px-2.5 py-1 text-[11px] ${
+              edrStatus?.enabled
+                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                : 'border-amber-200 bg-amber-50 text-amber-700'
+            }`}
+          >
+            {edrStatus?.enabled ? 'Aktywna' : 'Wymaga włączenia w config.php'}
+          </span>
+        </div>
+        <div className="rounded-xl border border-neutral-100 bg-white p-4 text-xs text-neutral-600 space-y-1.5">
+          <p><span className="text-neutral-500">Endpoint API:</span> {edrStatus?.base_url || 'https://edm.mydr.pl/secure/ext_api'}</p>
+          <p><span className="text-neutral-500">Lekarz / Gabinet:</span> ID lekarza {edrStatus?.doctor_id ?? 21239} · ID gabinetu {edrStatus?.office_id ?? 76376}</p>
+          <p><span className="text-neutral-500">Auto-podpinanie umówionych wizyt:</span> {edrStatus?.auto_sync_bookings ? 'włączone' : 'wyłączone'}</p>
+          <p><span className="text-neutral-500">Podpinanie wizyt mówionych (wywiad/badanie/zalecenia):</span> {edrStatus?.spoken_note_sync_enabled ? 'włączone' : 'wyłączone'}</p>
+          {edrStatus?.plan?.spoken_note_strategy && (
+            <p className="text-neutral-500 pt-1">{edrStatus.plan.spoken_note_strategy}</p>
+          )}
+        </div>
+      </section>
 
       <section className="space-y-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">

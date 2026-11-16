@@ -13,8 +13,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 require_once __DIR__ . '/bootstrap.php';
 require_once __DIR__ . '/backup-bookings.php';
 require_once __DIR__ . '/visit-report.php';
+require_once __DIR__ . '/edr.php';
 
 $api_route = api_route();
+$api_method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
 if (
     strpos($api_route, '/backups/bookings') !== 0
@@ -29,6 +31,10 @@ if ($api_route === '/site' && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
 }
 
 if (visit_report_handle_route($api_route, $_SERVER['REQUEST_METHOD'] ?? 'GET')) {
+    return;
+}
+
+if (edr_handle_admin_route($api_route, $api_method)) {
     return;
 }
 

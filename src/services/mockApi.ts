@@ -7,6 +7,10 @@ import {
   BookingsBackupRunResult,
   BookingsBackupStatus,
   BookingsRealignResult,
+  EdrBookingDetails,
+  EdrSpokenNote,
+  EdrStatus,
+  EdrVisitLink,
   SlotHold,
   VisitType,
 } from '../types';
@@ -84,6 +88,50 @@ let mockBackupState: BookingsBackupStatus = {
   next_due_at: null,
   seconds_until_next: 0,
 };
+
+const mockEdrStatus: EdrStatus = {
+  enabled: true,
+  configured: true,
+  booking_sync_ready: true,
+  base_url: 'https://edm.mydr.pl/secure/ext_api',
+  access_token_configured: true,
+  refresh_token_configured: true,
+  doctor_id_set: true,
+  office_id_set: true,
+  doctor_id: 21239,
+  office_id: 76376,
+  auto_sync_bookings: true,
+  spoken_note_sync_enabled: true,
+  deepgram_configured: true,
+  plan: {
+    visit_endpoint: '/secure/ext_api/visits/',
+    patients_endpoint: '/secure/ext_api/patients/',
+    token_endpoint: '/secure/ext_api/o/token/',
+    spoken_note_strategy: 'Umówiona wizyta tworzy/aktualizuje wpis w MyDr EDM, a podyktowana wizyta mówiona dopisuje wywiad, badanie i zalecenia bezpośrednio do wizyty w MyDr (PATCH /secure/ext_api/visits/{id}/).',
+  },
+};
+
+const mockEdrLinks: Record<string, EdrVisitLink> = {};
+const mockEdrNotes: Record<string, EdrSpokenNote[]> = {};
+
+function ensureMockEdrLink(booking: Booking, manualPatientId?: string): EdrVisitLink {
+  const now = new Date().toISOString();
+  const existing = mockEdrLinks[booking.id];
+  const visitId = existing?.edr_visit_id || String(910000 + (Number(booking.id.replace(/\D+/g, '').slice(-4)) || 101));
+  const patientId = manualPatientId || existing?.edr_patient_id || String(42000 + (Number(booking.id.replace(/\D+/g, '').slice(-3)) || 11));
+  booking.external_event_id = `mydr:${visitId}`;
+  const link: EdrVisitLink = {
+    booking_id: booking.id,
+    edr_visit_id: visitId,
+    edr_patient_id: patientId,
+    status: 'synced',
+    last_error: null,
+    synced_at: now,
+    updated_at: now,
+  };
+  mockEdrLinks[booking.id] = link;
+  return link;
+}
 
 function localDateKey(date = new Date()): string {
   return [
@@ -281,6 +329,7 @@ export const mockBookingApi: BookingApi = {
       updated_at: new Date().toISOString(),
     };
     store.bookings.push(booking);
+    ensureMockEdrLink(booking);
     save(store);
     return booking;
   },
@@ -385,6 +434,7 @@ export const mockBookingApi: BookingApi = {
       updated_at: new Date().toISOString(),
     };
     store.bookings.push(booking);
+    ensureMockEdrLink(booking);
     save(store);
     return booking;
   },
@@ -587,6 +637,65 @@ export const mockBookingApi: BookingApi = {
         'zalef87@gmail.com': true,
       },
       summary: [],
+    };
+  },
+
+  async getEdrStatus(): Promise<EdrStatus> {
+    return { ...mockEdrStatus, plan: mockEdrStatus.plan ? { ...mockEdrStatus.plan } : undefined };
+  },
+
+  async getBookingEdrDetails(bookingId): Promise<EdrBookingDetails> {
+    const store = load();
+    const booking = store.bookings.find((item) => item.id === bookingId);
+    if (booking && !mockEdrLinks[bookingId]) {
+      ensureMockEdrLink(booking);
+      save(store);
+    }
+    return {
+      status: await this.getEdrStatus(),
+      link: mockEdrLinks[bookingId] ? { ...mockEdrLinks[bookingId] } : null,
+      spoken_notes: (mockEdrNotes[bookingId] || []).map((note) => ({ ...note })),
+    };
+  },
+
+  async syncBookingToEdr(bookingId, patientId): Promise<EdrVisitLink> {
+    const store = load();
+    const booking = store.bookings.find((item) => item.id === bookingId);
+    if (!booking) throw new Error('Nie znaleziono rezerwacji.');
+    const link = ensureMockEdrLink(booking, patientId);
+    save(store);
+    return { ...link };
+  },
+
+  async addEdrSpokenNote(bookingId, data): Promise<EdrSpokenNote> {
+    const store = load();
+    const booking = store.bookings.find((item) => item.id === bookingId);
+    if (!booking) throw new Error('Nie znaleziono rezerwacji.');
+    const link = ensureMockEdrLink(booking, data.patient_id);
+    save(store);
+    const now = new Date().toISOString();
+    const note: EdrSpokenNote = {
+      id: `edr-note-${Date.now()}`,
+      booking_id: bookingId,
+      edr_visit_id: link.edr_visit_id,
+      source: data.source || 'voice',
+      target_field: data.target_field || 'interview',
+      transcript: data.transcript,
+      examination: data.examination || '',
+      recommendation: data.recommendation || '',
+      summary: data.summary || '',
+      status: 'synced',
+      last_error: null,
+      created_at: now,
+      synced_at: now,
+    };
+    mockEdrNotes[bookingId] = [note, ...(mockEdrNotes[bookingId] || [])];
+    return { ...note };
+  },
+
+  async transcribeEdrAudio(): Promise<{ transcript: string }> {
+    return {
+      transcript: 'Pacjent zgłasza poprawę snu oraz zmniejszenie napięcia lękowego po wdrożonym leczeniu. Nastrój wyrównany, napęd psychoruchowy w normie, bez myśli rezygnacyjnych.',
     };
   },
 };

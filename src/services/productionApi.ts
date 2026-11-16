@@ -6,6 +6,10 @@ import {
   BookingsBackupRunResult,
   BookingsBackupStatus,
   BookingsRealignResult,
+  EdrBookingDetails,
+  EdrSpokenNote,
+  EdrStatus,
+  EdrVisitLink,
   SlotHold,
   VisitType,
 } from '../types';
@@ -92,4 +96,36 @@ export const productionBookingApi: BookingApi = {
       { method: 'POST', body: JSON.stringify({ dates }) },
       true,
     ),
+  getEdrStatus: () =>
+    fetchApi<EdrStatus>('/admin/edr/status', undefined, true),
+  getBookingEdrDetails: (bookingId) =>
+    fetchApi<EdrBookingDetails>(`/admin/bookings/${encodeURIComponent(bookingId)}/edr`, undefined, true),
+  syncBookingToEdr: (bookingId, patientId = '') =>
+    fetchApi<EdrVisitLink>(
+      `/admin/bookings/${encodeURIComponent(bookingId)}/edr/sync`,
+      { method: 'POST', body: JSON.stringify({ patient_id: patientId }) },
+      true,
+    ),
+  addEdrSpokenNote: (bookingId, data) =>
+    fetchApi<EdrSpokenNote>(
+      `/admin/bookings/${encodeURIComponent(bookingId)}/edr/spoken-note`,
+      { method: 'POST', body: JSON.stringify(data) },
+      true,
+    ),
+  transcribeEdrAudio: async (blob) => {
+    const form = new FormData();
+    form.append('audio', blob, 'wizyta-mowiona.webm');
+    const response = await fetch(`${BASE_URL}/admin/edr/transcribe`, {
+      method: 'POST',
+      headers: {
+        ...adminHeaders(),
+      },
+      body: form,
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(typeof payload?.error === 'string' ? payload.error : 'Nie udało się przetranskrybować nagrania.');
+    }
+    return payload as { transcript: string };
+  },
 };
