@@ -47,8 +47,21 @@ function send_booking_mail(array $booking): bool
     if ($address !== '') {
         $place .= '<p><strong>Adres praktyki:</strong> ' . htmlspecialchars($address, ENT_QUOTES, 'UTF-8') . '</p>';
     }
+    $requiresPayment = false;
+    try {
+        $requiresPayment = payment_gateway_configured() && payments_booking_requires_payment(db(), $booking);
+    } catch (Throwable $error) {
+        error_log('Booking payment requirement check failed: ' . $error->getMessage());
+    }
 
-    $subject = 'Konsultacja online zapisana — potwierdź albo anuluj';
+    $subject = $requiresPayment
+        ? 'Konsultacja online zapisana — opłać wizytę'
+        : 'Konsultacja online zapisana — potwierdź albo anuluj';
+    $intro = $requiresPayment
+        ? 'Termin konsultacji online u ' . htmlspecialchars($office, ENT_QUOTES, 'UTF-8') . ' jest zarezerwowany. Opłać wizytę online, żeby potwierdzić termin, albo anuluj, jeśli nie możesz się połączyć.'
+        : 'Termin konsultacji online u ' . htmlspecialchars($office, ENT_QUOTES, 'UTF-8') . ' jest zarezerwowany. Potwierdź wizytę albo anuluj, jeśli nie możesz się połączyć.';
+    $linkLead = $requiresPayment ? 'Otwórz link i przejdź do płatności albo anuluj wizytę:' : 'Otwórz link i wybierz jedną opcję:';
+    $primaryLabel = $requiresPayment ? 'Opłać wizytę online' : 'Potwierdź wizytę';
     $headers = "From: {$from}\r\n";
     $headers .= "Reply-To: {$reply}\r\n";
     $headers .= "MIME-Version: 1.0\r\n";
@@ -60,15 +73,15 @@ function send_booking_mail(array $booking): bool
       <div style='max-width: 600px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 12px; border: 1px solid #E5E7EB;'>
         <h2 style='font-weight: 400; font-size: 22px; margin-bottom: 16px;'>Wizyta zapisana</h2>
         <p>Witaj {$name},</p>
-        <p>Termin konsultacji online u {$office} jest zarezerwowany. Potwierdź wizytę albo anuluj, jeśli nie możesz się połączyć.</p>
+        <p>{$intro}</p>
         <div style='margin: 20px 0; border-top: 1px solid #E5E7EB; border-bottom: 1px solid #E5E7EB; padding: 15px 0;'>
           <p><strong>Data:</strong> {$date}</p>
           <p><strong>Godzina:</strong> {$time}</p>
           {$place}
         </div>
-        <p style='margin-bottom: 20px;'>Otwórz link i wybierz jedną opcję:</p>
+        <p style='margin-bottom: 20px;'>{$linkLead}</p>
         <p>
-          <a href='{$manageUrl}' style='display: inline-block; background: #111827; color: #fff; text-decoration: none; padding: 12px 20px; border-radius: 8px; font-weight: bold; margin-right: 8px;'>Potwierdź wizytę</a>
+          <a href='{$manageUrl}' style='display: inline-block; background: #111827; color: #fff; text-decoration: none; padding: 12px 20px; border-radius: 8px; font-weight: bold; margin-right: 8px;'>{$primaryLabel}</a>
           <a href='{$manageUrl}' style='display: inline-block; background: #fff; color: #111827; text-decoration: none; padding: 12px 20px; border-radius: 8px; font-weight: bold; border: 1px solid #D1D5DB;'>Anuluj wizytę</a>
         </p>
         <p style='margin-top: 24px; font-size: 12px; color: #6B7280;'>Jeśli przyciski nie działają, wklej adres: {$manageUrl}</p>

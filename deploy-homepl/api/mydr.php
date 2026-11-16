@@ -410,7 +410,9 @@ function mydr_sync_booking(PDO $pdo, string $bookingId): array
         $visitId = $link && $link['visit_id'] !== null ? (int) $link['visit_id'] : null;
         $status = (string) $booking['status'];
 
-        $notInCalendar = $visitId === null && !in_array($status, ['pending', 'pending_payment', 'confirmed'], true);
+        $notInCalendar = $visitId === null
+            && !in_array($status, ['pending', 'pending_payment', 'confirmed'], true)
+            && !($status === 'cancelled' && $patientId !== null);
         $closedLocally = $visitId !== null && in_array($status, ['completed', 'no_show'], true);
         if ($notInCalendar || $closedLocally) {
             if ($link) {
@@ -456,6 +458,11 @@ function mydr_sync_booking(PDO $pdo, string $bookingId): array
             }
             mydr_save_link($pdo, $bookingId, $patientId, $existingVisitId, 'synced');
             return ['ok' => true, 'status' => 'synced', 'visit_id' => $existingVisitId];
+        }
+
+        if (!in_array($status, ['pending', 'pending_payment', 'confirmed'], true)) {
+            mydr_save_link($pdo, $bookingId, $patientId, null, 'skipped');
+            return ['ok' => true, 'status' => 'skipped'];
         }
 
         $visitType = visit_type($pdo, (string) $booking['visit_type_id'], false);
