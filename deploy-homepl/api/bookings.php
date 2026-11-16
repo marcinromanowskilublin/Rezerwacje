@@ -511,7 +511,7 @@ try {
                 $limit = $pdo->prepare(
                     "SELECT COUNT(*) AS cnt
                      FROM bookings
-                     WHERE patient_email = ? AND status IN ('pending', 'confirmed')"
+                     WHERE patient_email = ? AND status IN ('pending', 'pending_payment', 'confirmed')"
                 );
                 $limit->execute([$email]);
                 $row = $limit->fetch();

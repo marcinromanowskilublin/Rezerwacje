@@ -161,7 +161,7 @@ function smsapi_run_day_before_reminders(PDO $pdo): array
     if (!smsapi_auto_enabled('reminder_day_before')) {
         return ['ok' => true, 'sent' => 0, 'skipped' => 0, 'enabled' => false];
     }
-    $targetDate = gmdate('Y-m-d', time() + 86400);
+    $targetDate = date('Y-m-d', strtotime('+1 day') ?: time() + 86400);
     $stmt = $pdo->prepare(
         "SELECT *
          FROM bookings

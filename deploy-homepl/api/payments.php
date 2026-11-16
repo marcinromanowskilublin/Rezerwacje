@@ -614,9 +614,12 @@ function payments_verify_przelewy24_notification(PDO $pdo, array $data): array
 
     $verify = payments_p24_post('/api/v1/transaction/verify', $verifyBody);
     if (empty($verify['ok'])) {
-        $pdo->prepare("UPDATE payments SET status = 'failed', external_payment_id = ? WHERE id = ?")
+        if ((string) ($payment['status'] ?? '') === 'paid') {
+            return ['ok' => true, 'already_paid' => true];
+        }
+        $pdo->prepare("UPDATE payments SET status = 'failed', external_payment_id = ? WHERE id = ? AND status != 'paid'")
             ->execute(['order:' . $orderId, $sessionId]);
-        $pdo->prepare("UPDATE bookings SET payment_status = 'failed' WHERE id = ?")
+        $pdo->prepare("UPDATE bookings SET payment_status = 'failed' WHERE id = ? AND payment_status != 'paid'")
             ->execute([(string) $payment['booking_id']]);
         error_log('Przelewy24 verify failed: ' . json_encode($verify, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
         return ['ok' => false, 'error' => 'Nie udało się zweryfikować płatności.'];

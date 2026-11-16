@@ -16,6 +16,17 @@ const EDR_VOICE_ALLOWED_AUDIO_TYPES = [
     'video/webm',
 ];
 
+function edr_voice_first_non_empty(...$values): string
+{
+    foreach ($values as $value) {
+        $string = trim((string) $value);
+        if ($string !== '') {
+            return $string;
+        }
+    }
+    return '';
+}
+
 function edr_voice_config(): array
 {
     global $config;
@@ -42,8 +53,18 @@ function edr_voice_config(): array
         'access_token' => trim((string) ($edr['access_token'] ?? $config['edr_access_token'] ?? getenv('EDR_ACCESS_TOKEN') ?: '')),
         'refresh_token' => trim((string) ($edr['refresh_token'] ?? $config['edr_refresh_token'] ?? $config['mydr_refresh_token'] ?? getenv('EDR_REFRESH_TOKEN') ?: '')),
         'token_file' => trim((string) ($edr['token_file'] ?? $config['edr_token_file'] ?? getenv('EDR_TOKEN_FILE') ?: '')),
-        'doctor_id' => (int) ($edr['doctor_id'] ?? $config['edr_doctor_id'] ?? $config['mydr_doctor_id'] ?? getenv('EDR_DOCTOR_ID') ?: 0),
-        'office_id' => (int) ($edr['office_id'] ?? $config['edr_office_id'] ?? $config['mydr_office_id'] ?? getenv('EDR_OFFICE_ID') ?: 0),
+        'doctor_id' => (int) edr_voice_first_non_empty(
+            $edr['doctor_id'] ?? '',
+            $config['edr_doctor_id'] ?? '',
+            $config['mydr_doctor_id'] ?? '',
+            getenv('EDR_DOCTOR_ID') ?: ''
+        ),
+        'office_id' => (int) edr_voice_first_non_empty(
+            $edr['office_id'] ?? '',
+            $config['edr_office_id'] ?? '',
+            $config['mydr_office_id'] ?? '',
+            getenv('EDR_OFFICE_ID') ?: ''
+        ),
         'spoken_sync_enabled' => filter_var(
             $edr['spoken_note_sync_enabled']
                 ?? ($config['edr_spoken_note_sync_enabled'] ?? getenv('EDR_SPOKEN_NOTE_SYNC_ENABLED')),

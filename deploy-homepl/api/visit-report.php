@@ -729,6 +729,8 @@ function visit_report_handle_cancel_route(PDO $pdo, string $method): void
     }
 
     if ($stmt->rowCount() > 0) {
+        smsapi_send_auto($pdo, $booking, 'booking_cancelled');
+        mydr_sync_after_response((string) $booking['id']);
         visit_report_render_cancel_page('Wizyta odwołana', 'Wizyta została odwołana.', $booking, false);
     }
 
