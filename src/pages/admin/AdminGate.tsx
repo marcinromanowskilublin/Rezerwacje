@@ -2,61 +2,42 @@ import { FormEvent, ReactNode, useEffect, useState } from 'react';
 import { Navigate, NavLink } from 'react-router-dom';
 import { Button } from '../../components/ui/Button';
 import { config } from '../../config/features';
-
-const ADMIN_KEY = 'rezerwacje_admin_password';
-const ADMIN_LOGIN = 'admin';
-
-function expectedMockPassword() {
-  return import.meta.env.VITE_ADMIN_PASSWORD || 'admin';
-}
-
-export function readAdminPassword() {
-  return sessionStorage.getItem(ADMIN_KEY) || '';
-}
+import { bookingApi } from '../../services/bookingApi';
 
 export default function AdminGate({ children, loginOnly = false }: { children: ReactNode; loginOnly?: boolean }) {
   const [authed, setAuthed] = useState(false);
-  const [username, setUsername] = useState(ADMIN_LOGIN);
+  const [checkingSession, setCheckingSession] = useState(true);
+  const [username, setUsername] = useState('admin');
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const stored = readAdminPassword();
-    if (stored) void unlock(ADMIN_LOGIN, stored);
+    let cancelled = false;
+    bookingApi.getAdminSession()
+      .then((session) => {
+        if (!cancelled) setAuthed(session.authenticated);
+      })
+      .catch(() => {
+        if (!cancelled) setAuthed(false);
+      })
+      .finally(() => {
+        if (!cancelled) setCheckingSession(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const unlock = async (login: string, value: string) => {
-    if (login.trim().toLowerCase() !== ADMIN_LOGIN) {
-      sessionStorage.removeItem(ADMIN_KEY);
-      setAuthed(false);
-      setLoginError('Nieprawidłowy login.');
-      return;
-    }
-    if (config.API_MODE !== 'production') {
-      if (value !== expectedMockPassword()) {
-        sessionStorage.removeItem(ADMIN_KEY);
-        setAuthed(false);
-        setLoginError('Nieprawidłowe hasło.');
-        return;
-      }
-      sessionStorage.setItem(ADMIN_KEY, value);
-      setAuthed(true);
-      setLoginError(null);
-      return;
-    }
-
-    sessionStorage.setItem(ADMIN_KEY, value);
     setLoading(true);
     try {
-      const { bookingApi } = await import('../../services/bookingApi');
-      await bookingApi.getAvailabilityRules();
-      setAuthed(true);
+      const session = await bookingApi.adminLogin(login.trim(), value);
+      setAuthed(session.authenticated);
       setLoginError(null);
     } catch (err: any) {
-      sessionStorage.removeItem(ADMIN_KEY);
       setAuthed(false);
-      setLoginError(err?.status === 401 ? 'Nieprawidłowe hasło.' : 'Nie udało się zalogować.');
+      setLoginError(err?.status === 401 ? 'Nieprawidłowy login lub hasło.' : 'Nie udało się zalogować.');
     } finally {
       setLoading(false);
     }
@@ -64,14 +45,19 @@ export default function AdminGate({ children, loginOnly = false }: { children: R
 
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
-    await unlock(username.trim(), password.trim());
+    await unlock(username, password);
   };
 
-  const logout = () => {
-    sessionStorage.removeItem(ADMIN_KEY);
-    setAuthed(false);
-    setPassword('');
+  const logout = async () => {
+    try {
+      await bookingApi.adminLogout();
+    } finally {
+      setAuthed(false);
+      setPassword('');
+    }
   };
+
+  if (checkingSession) return null;
 
   if (!authed) {
     return (
@@ -123,9 +109,9 @@ export default function AdminGate({ children, loginOnly = false }: { children: R
   }
 
   return (
-    <div className="w-full max-w-4xl mx-auto space-y-8">
+    <div className="w-full max-w-6xl mx-auto space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <nav className="flex gap-2">
+        <nav className="flex flex-wrap gap-2">
           <NavLink
             to="/admin"
             end
@@ -134,6 +120,14 @@ export default function AdminGate({ children, loginOnly = false }: { children: R
             }
           >
             Wizyty
+          </NavLink>
+          <NavLink
+            to="/admin/wiadomosci"
+            className={({ isActive }) =>
+              `h-10 px-4 rounded-xl text-xs uppercase tracking-widest flex items-center ${isActive ? 'bg-neutral-900 text-white' : 'border border-neutral-200 text-neutral-600 hover:text-neutral-900'}`
+            }
+          >
+            Wiadomości
           </NavLink>
           <NavLink
             to="/admin/grafik"
@@ -152,7 +146,7 @@ export default function AdminGate({ children, loginOnly = false }: { children: R
             Ustawienia
           </NavLink>
         </nav>
-        <Button onClick={logout} variant="ghost" className="h-10 text-xs">Wyloguj</Button>
+        <Button onClick={() => void logout()} variant="ghost" className="h-10 text-xs">Wyloguj</Button>
       </div>
       {children}
     </div>

@@ -35,6 +35,7 @@ export const site = {
   privacyEmail: 'kontakt@marcin-romanowski.pl',
   znanyLekarzUrl: 'https://www.znanylekarz.pl/marcin-romanowski-2/psychiatra/lublin',
   portraitSrc: `${import.meta.env.BASE_URL}marcin-romanowski.jpg`,
+  facebookPageUrl: 'https://www.facebook.com/profile.php?id=61596277887811',
   whatsappUrl: `https://wa.me/${phoneDigits}`,
   contactNote:
     'Korzystam z WhatsAppa, żeby wygodnie wymieniać informacje i pliki — tak kontaktuję się z pacjentami.',

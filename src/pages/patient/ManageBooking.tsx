@@ -20,7 +20,8 @@ export default function ManageBooking() {
   const [booking, setBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [working, setWorking] = useState<'confirm' | 'cancel' | null>(null);
+  const [working, setWorking] = useState<'confirm' | 'cancel' | 'pay' | null>(null);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) return;
@@ -58,6 +59,24 @@ export default function ManageBooking() {
     setWorking(null);
   };
 
+  const handlePayment = async () => {
+    if (!booking) return;
+    setPaymentError(null);
+    setWorking('pay');
+    try {
+      const result = await bookingApi.startPayment(booking.management_token);
+      if (result.ok && result.payment_url) {
+        window.location.assign(result.payment_url);
+        return;
+      }
+      throw new Error(result.error || 'Nie udało się rozpocząć płatności.');
+    } catch (err: any) {
+      setPaymentError(err.message || 'Nie udało się rozpocząć płatności.');
+    } finally {
+      setWorking(null);
+    }
+  };
+
   if (loading) return <div className="text-center py-12 text-neutral-500">Wczytywanie...</div>;
 
   if (error || !booking) {
@@ -73,6 +92,7 @@ export default function ManageBooking() {
   const dateObj = parseISO(booking.booking_date);
   const isCancelled = booking.status === 'cancelled';
   const isConfirmed = booking.status === 'confirmed';
+  const paymentDue = booking.payment_status !== 'paid' && booking.status === 'pending_payment';
   const canDecide = !isCancelled && booking.status !== 'completed' && booking.status !== 'no_show';
 
   return (
@@ -82,6 +102,8 @@ export default function ManageBooking() {
         <p className="text-neutral-500 text-sm">
           {isCancelled
             ? 'Ta wizyta została anulowana.'
+            : paymentDue
+              ? 'Wizyta czeka na płatność online.'
             : isConfirmed
               ? 'Wizyta jest potwierdzona. Nadal możesz ją anulować.'
               : 'Potwierdź termin albo anuluj wizytę.'}
@@ -114,7 +136,15 @@ export default function ManageBooking() {
 
         {canDecide && (
           <div className="pt-6 border-t border-neutral-100 grid gap-3">
-            {!isConfirmed && (
+            {paymentDue && (
+              <>
+                <Button onClick={() => void handlePayment()} disabled={working !== null} className="w-full h-12">
+                  {working === 'pay' ? 'Przekierowuję...' : 'Przejdź do płatności online'}
+                </Button>
+                {paymentError && <p className="text-xs text-red-600 text-center">{paymentError}</p>}
+              </>
+            )}
+            {!isConfirmed && !paymentDue && (
               <Button onClick={handleConfirm} disabled={working !== null} className="w-full h-12">
                 {working === 'confirm' ? 'Potwierdzanie...' : 'Potwierdź wizytę'}
               </Button>

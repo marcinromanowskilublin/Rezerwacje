@@ -13,6 +13,7 @@ export default function Summary() {
   const { state, reset } = useBooking();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [loadingLabel, setLoadingLabel] = useState('Zapisywanie...');
   const [error, setError] = useState<string | null>(null);
   const submittedRef = useRef(false);
 
@@ -24,6 +25,7 @@ export default function Summary() {
 
   const handleConfirm = async () => {
     setLoading(true);
+    setLoadingLabel('Zapisywanie...');
     setError(null);
     try {
       const booking = await bookingApi.createBooking({
@@ -37,6 +39,26 @@ export default function Summary() {
       });
 
       submittedRef.current = true;
+      if (state.visitType!.payment_policy === 'required') {
+        setLoadingLabel('Przygotowuję płatność...');
+        try {
+          const payment = await bookingApi.startPayment(booking.management_token);
+          if (payment.ok && payment.payment_url) {
+            window.location.assign(payment.payment_url);
+            return;
+          }
+          throw new Error(payment.error || 'Nie udało się rozpocząć płatności.');
+        } catch (paymentError: any) {
+          navigate('/confirmation', {
+            state: {
+              booking,
+              paymentError: paymentError.message || 'Termin jest zapisany, ale płatność trzeba uruchomić ponownie.',
+            },
+          });
+          reset();
+          return;
+        }
+      }
       navigate('/confirmation', { state: { booking } });
       reset();
     } catch (err: any) {
@@ -94,7 +116,7 @@ export default function Summary() {
 
         <div className="mt-auto pt-4">
            <Button onClick={handleConfirm} disabled={loading} className="w-full h-14" size="lg">
-             {loading ? 'Zapisywanie...' : 'Zarezerwuj wizytę'}
+             {loading ? loadingLabel : state.visitType.payment_policy === 'required' ? 'Zarezerwuj i przejdź do płatności' : 'Zarezerwuj wizytę'}
            </Button>
         </div>
       </div>

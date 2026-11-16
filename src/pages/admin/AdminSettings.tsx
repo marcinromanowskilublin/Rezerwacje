@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { addDays, format } from 'date-fns';
 import { Button } from '../../components/ui/Button';
 import { bookingApi } from '../../services/bookingApi';
-import { BookingsBackupStatus } from '../../types';
+import { BookingsBackupStatus, PaymentGatewayStatus, SmsStatus, WhatsAppStatus } from '../../types';
 import AdminGate from './AdminGate';
 
 interface AdminAutomationSettings {
@@ -10,6 +10,18 @@ interface AdminAutomationSettings {
   emailPatientListSendTime: string;
   morningConfirmationCheckEnabled: boolean;
   smsIfUnconfirmedEnabled: boolean;
+  whatsappBotEnabled: boolean;
+  whatsappLabelsEnabled: boolean;
+  whatsappManualReplyEnabled: boolean;
+  smsManualSendEnabled: boolean;
+  smsAutoBookingEnabled: boolean;
+  smsReminderDayBeforeEnabled: boolean;
+  smsCancelRescheduleEnabled: boolean;
+  paymentsOnlineEnabled: boolean;
+  paymentsRequiredEnabled: boolean;
+  emailReportsEnabled: boolean;
+  backupsEnabled: boolean;
+  assistantEnabled: boolean;
 }
 
 const STORAGE_KEY = 'rezerwacje_admin_automation_settings';
@@ -18,6 +30,18 @@ const defaultSettings: AdminAutomationSettings = {
   emailPatientListSendTime: '18:00',
   morningConfirmationCheckEnabled: false,
   smsIfUnconfirmedEnabled: false,
+  whatsappBotEnabled: false,
+  whatsappLabelsEnabled: true,
+  whatsappManualReplyEnabled: true,
+  smsManualSendEnabled: true,
+  smsAutoBookingEnabled: false,
+  smsReminderDayBeforeEnabled: false,
+  smsCancelRescheduleEnabled: false,
+  paymentsOnlineEnabled: true,
+  paymentsRequiredEnabled: true,
+  emailReportsEnabled: true,
+  backupsEnabled: true,
+  assistantEnabled: false,
 };
 
 const emptyBackupStatus: BookingsBackupStatus = {
@@ -49,6 +73,18 @@ function readSettings(): AdminAutomationSettings {
       emailPatientListSendTime: sendTime,
       morningConfirmationCheckEnabled: Boolean(parsed.morningConfirmationCheckEnabled),
       smsIfUnconfirmedEnabled: Boolean(parsed.smsIfUnconfirmedEnabled),
+      whatsappBotEnabled: parsed.whatsappBotEnabled ?? defaultSettings.whatsappBotEnabled,
+      whatsappLabelsEnabled: parsed.whatsappLabelsEnabled ?? defaultSettings.whatsappLabelsEnabled,
+      whatsappManualReplyEnabled: parsed.whatsappManualReplyEnabled ?? defaultSettings.whatsappManualReplyEnabled,
+      smsManualSendEnabled: parsed.smsManualSendEnabled ?? defaultSettings.smsManualSendEnabled,
+      smsAutoBookingEnabled: parsed.smsAutoBookingEnabled ?? defaultSettings.smsAutoBookingEnabled,
+      smsReminderDayBeforeEnabled: parsed.smsReminderDayBeforeEnabled ?? defaultSettings.smsReminderDayBeforeEnabled,
+      smsCancelRescheduleEnabled: parsed.smsCancelRescheduleEnabled ?? defaultSettings.smsCancelRescheduleEnabled,
+      paymentsOnlineEnabled: parsed.paymentsOnlineEnabled ?? defaultSettings.paymentsOnlineEnabled,
+      paymentsRequiredEnabled: parsed.paymentsRequiredEnabled ?? defaultSettings.paymentsRequiredEnabled,
+      emailReportsEnabled: parsed.emailReportsEnabled ?? defaultSettings.emailReportsEnabled,
+      backupsEnabled: parsed.backupsEnabled ?? defaultSettings.backupsEnabled,
+      assistantEnabled: parsed.assistantEnabled ?? defaultSettings.assistantEnabled,
     };
   } catch {
     return defaultSettings;
@@ -99,6 +135,54 @@ function SettingSwitch({
   );
 }
 
+function InfoList({ title, items }: { title: string; items: string[] }) {
+  return (
+    <div className="rounded-xl border border-neutral-100 bg-white p-4">
+      <p className="text-xs font-semibold uppercase tracking-widest text-neutral-500">{title}</p>
+      <ul className="mt-2 space-y-1 text-xs text-neutral-600">
+        {items.map((item) => (
+          <li key={item}>- {item}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function IntegrationSection({
+  title,
+  description,
+  status,
+  can,
+  cannot,
+  children,
+}: {
+  title: string;
+  description: string;
+  status: string;
+  can: string[];
+  cannot: string[];
+  children: ReactNode;
+}) {
+  return (
+    <section className="space-y-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-light text-neutral-900">{title}</h2>
+          <p className="mt-1 text-xs text-neutral-500">{description}</p>
+        </div>
+        <span className="rounded-full border border-neutral-200 bg-white px-2.5 py-1 text-[11px] text-neutral-600">
+          {status}
+        </span>
+      </div>
+      <div className="grid gap-3 md:grid-cols-2">
+        <InfoList title="Może robić" items={can} />
+        <InfoList title="Nie może robić" items={cannot} />
+      </div>
+      <div className="space-y-3">{children}</div>
+    </section>
+  );
+}
+
 function SettingsPanel() {
   const [settings, setSettings] = useState<AdminAutomationSettings>(() => readSettings());
   const [savedAt, setSavedAt] = useState<string | null>(null);
@@ -110,6 +194,9 @@ function SettingsPanel() {
   const [sendingReport, setSendingReport] = useState(false);
   const [reportMessage, setReportMessage] = useState<string | null>(null);
   const [reportError, setReportError] = useState<string | null>(null);
+  const [whatsappStatus, setWhatsappStatus] = useState<WhatsAppStatus | null>(null);
+  const [smsStatus, setSmsStatus] = useState<SmsStatus | null>(null);
+  const [paymentStatus, setPaymentStatus] = useState<PaymentGatewayStatus | null>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -137,6 +224,9 @@ function SettingsPanel() {
 
   useEffect(() => {
     void loadBackupStatus();
+    void bookingApi.getWhatsAppStatus().then(setWhatsappStatus).catch(() => undefined);
+    void bookingApi.getSmsStatus().then(setSmsStatus).catch(() => undefined);
+    void bookingApi.getPaymentGatewayStatus().then(setPaymentStatus).catch(() => undefined);
   }, []);
 
   const runBackupNow = async () => {
@@ -194,9 +284,185 @@ function SettingsPanel() {
       <div>
         <h1 className="text-3xl font-light text-neutral-900 mb-2">Ustawienia</h1>
         <p className="text-neutral-500 text-sm">
-          Opcje automatyzacji przypomnień i potwierdzeń wizyt.
+          Decyzje dla podłączonych aplikacji, automatyzacji i integracji.
         </p>
       </div>
+
+      <IntegrationSection
+        title="WhatsApp"
+        description="Wiadomości, webhook, bot sekretarki i etykietowanie spraw."
+        status={whatsappStatus?.threads_configured ? 'skonfigurowany' : 'wymaga konfiguracji'}
+        can={[
+          'odbierać wiadomości przez webhook Meta',
+          'wysyłać odpowiedzi w 24-godzinnym oknie WhatsApp',
+          'uruchamiać bota po czasie bez odpowiedzi',
+          'nadawać etykiety i zbierać dane sprawy',
+        ]}
+        cannot={[
+          'udzielać porad medycznych ani podejmować decyzji klinicznych',
+          'odpowiadać po 24h bez oficjalnego szablonu Meta',
+          'działać bez tokena, phone_number_id i webhook secret',
+        ]}
+      >
+        <SettingSwitch
+          title="Bot sekretarki WhatsApp"
+          description="Decyzja operacyjna: bot może zebrać kategorię, dane pacjenta i opis sprawy."
+          checked={settings.whatsappBotEnabled}
+          onChange={(next) => setSettings((prev) => ({ ...prev, whatsappBotEnabled: next }))}
+        />
+        <SettingSwitch
+          title="Etykietowanie wątków"
+          description="Bot może dopisywać etykiety typu termin, recepta/leki, PESEL, pilne."
+          checked={settings.whatsappLabelsEnabled}
+          onChange={(next) => setSettings((prev) => ({ ...prev, whatsappLabelsEnabled: next }))}
+        />
+        <SettingSwitch
+          title="Ręczne przejęcie rozmowy"
+          description="Po odpowiedzi właściciela bot pauzuje automatyzację w danym wątku."
+          checked={settings.whatsappManualReplyEnabled}
+          onChange={(next) => setSettings((prev) => ({ ...prev, whatsappManualReplyEnabled: next }))}
+        />
+      </IntegrationSection>
+
+      <IntegrationSection
+        title="SMSAPI"
+        description="Ręczne SMS-y z panelu, szablony i automatyczne przypomnienia."
+        status={smsStatus?.configured ? 'skonfigurowany' : 'wymaga tokena'}
+        can={[
+          'wysyłać SMS po potwierdzeniu w panelu',
+          'używać szablonu albo własnej treści',
+          'wysyłać przypomnienie dzień przed wizytą po włączeniu reguły',
+          'odbierać status doręczenia przez callback',
+        ]}
+        cannot={[
+          'wysyłać automatycznie, jeśli reguła w configu jest wyłączona',
+          'przechowywać treści SMS ani numeru odbiorcy w historii',
+          'działać bez tokena SMSAPI i zatwierdzonego nadawcy, jeśli jest wymagany',
+        ]}
+      >
+        <SettingSwitch
+          title="Ręczna wysyłka SMS z panelu"
+          description="Przycisk SMS otwiera podgląd, a wysyłka wymaga kliknięcia Wyślij."
+          checked={settings.smsManualSendEnabled}
+          onChange={(next) => setSettings((prev) => ({ ...prev, smsManualSendEnabled: next }))}
+        />
+        <SettingSwitch
+          title="SMS po rezerwacji"
+          description="Decyzja dla reguły booking_created. Domyślnie w backendzie wyłączone."
+          checked={settings.smsAutoBookingEnabled}
+          onChange={(next) => setSettings((prev) => ({ ...prev, smsAutoBookingEnabled: next }))}
+        />
+        <SettingSwitch
+          title="Przypomnienie dzień przed wizytą"
+          description="Decyzja dla crona smsapi/reminders/run. Domyślnie w backendzie wyłączone."
+          checked={settings.smsReminderDayBeforeEnabled}
+          onChange={(next) => setSettings((prev) => ({ ...prev, smsReminderDayBeforeEnabled: next }))}
+        />
+        <SettingSwitch
+          title="SMS po anulowaniu lub przełożeniu"
+          description="Decyzja dla reguł booking_cancelled i booking_rescheduled."
+          checked={settings.smsCancelRescheduleEnabled}
+          onChange={(next) => setSettings((prev) => ({ ...prev, smsCancelRescheduleEnabled: next }))}
+        />
+      </IntegrationSection>
+
+      <IntegrationSection
+        title="PayU"
+        description="Płatność online za wizytę i automatyczne potwierdzenie po statusie COMPLETED."
+        status={paymentStatus?.configured ? `skonfigurowany (${paymentStatus.environment})` : 'wymaga danych POS'}
+        can={[
+          'tworzyć płatność online po rezerwacji',
+          'przekierować pacjenta do PayU',
+          'odebrać notyfikację PayU i oznaczyć wizytę jako opłaconą',
+          'automatycznie potwierdzić wizytę po skutecznej płatności',
+        ]}
+        cannot={[
+          'działać bez POS ID, client_id, client_secret i drugiego klucza',
+          'oznaczać płatności jako opłacone bez poprawnego podpisu PayU',
+          'przechowywać danych kart ani pełnych danych płatniczych pacjenta',
+        ]}
+      >
+        <SettingSwitch
+          title="Płatności online PayU"
+          description="Decyzja operacyjna dla przycisku płatności i przekierowania do PayU."
+          checked={settings.paymentsOnlineEnabled}
+          onChange={(next) => setSettings((prev) => ({ ...prev, paymentsOnlineEnabled: next }))}
+        />
+        <SettingSwitch
+          title="Wymagana płatność dla wizyt z polityką required"
+          description="Pierwsza konsultacja może czekać na płatność i potwierdzić się po statusie COMPLETED."
+          checked={settings.paymentsRequiredEnabled}
+          onChange={(next) => setSettings((prev) => ({ ...prev, paymentsRequiredEnabled: next }))}
+        />
+      </IntegrationSection>
+
+      <IntegrationSection
+        title="E-mail i raporty"
+        description="Potwierdzenia rezerwacji, powiadomienia właściciela i raport wizyt."
+        status="częściowo aktywne"
+        can={[
+          'wysyłać potwierdzenie rezerwacji na e-mail pacjenta',
+          'wysyłać powiadomienie o rezerwacji do właściciela',
+          'wysłać próbny raport wizyt z panelu',
+        ]}
+        cannot={[
+          'wysyłać masowych mailingów marketingowych',
+          'zastępować dokumentacji medycznej',
+          'gwarantować doręczenia bez poprawnej konfiguracji poczty serwera',
+        ]}
+      >
+        <SettingSwitch
+          title="Raporty e-mail"
+          description="Decyzja operacyjna dla raportów wizyt i listy pacjentów."
+          checked={settings.emailReportsEnabled}
+          onChange={(next) => setSettings((prev) => ({ ...prev, emailReportsEnabled: next }))}
+        />
+      </IntegrationSection>
+
+      <IntegrationSection
+        title="Backupy"
+        description="Plikowe kopie rezerwacji i ręczne wymuszenie backupu."
+        status={backupStatus.last_run_at ? 'działa' : 'brak ostatniego backupu'}
+        can={[
+          'zapisywać kopie rezerwacji do pliku',
+          'uruchamiać backup ręcznie z panelu',
+          'czyścić stare backupy według retencji',
+        ]}
+        cannot={[
+          'zastępować pełnego backupu bazy MySQL',
+          'chronić przed utratą danych, jeśli katalog storage nie jest zapisywalny',
+        ]}
+      >
+        <SettingSwitch
+          title="Automatyczne backupy rezerwacji"
+          description="Decyzja operacyjna; szczegóły interwału są w config.php."
+          checked={settings.backupsEnabled}
+          onChange={(next) => setSettings((prev) => ({ ...prev, backupsEnabled: next }))}
+        />
+      </IntegrationSection>
+
+      <IntegrationSection
+        title="Asystent AI"
+        description="Pomoc administracyjna w panelu, bez samodzielnych decyzji medycznych."
+        status="opcjonalny"
+        can={[
+          'pomagać w zarządzaniu grafikiem i opisach zadań',
+          'porządkować intencje kontaktu',
+          'działać tylko z ograniczeniami panelu admina',
+        ]}
+        cannot={[
+          'diagnozować, leczyć ani udzielać zaleceń medycznych',
+          'wysyłać wiadomości do pacjenta bez osobnej funkcji wysyłki',
+          'działać bez skonfigurowanego klucza API',
+        ]}
+      >
+        <SettingSwitch
+          title="Asystent w panelu"
+          description="Decyzja operacyjna dla funkcji AI w panelu admina."
+          checked={settings.assistantEnabled}
+          onChange={(next) => setSettings((prev) => ({ ...prev, assistantEnabled: next }))}
+        />
+      </IntegrationSection>
 
       <section className="space-y-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">

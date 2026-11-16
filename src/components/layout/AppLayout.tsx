@@ -1,13 +1,23 @@
 import { useEffect } from 'react';
-import { Outlet, Link, NavLink, useLocation } from 'react-router-dom';
+import { Outlet, Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { formatNip, formatRegon, fullAddress, site } from '../../config/site';
 import { bookingApi } from '../../services/bookingApi';
+import OfficeHeader, { type OfficeTheme } from './OfficeHeader';
+import './office.css';
 
 let pageViewRecorded = false;
 
 export default function AppLayout() {
   const location = useLocation();
+  const navigate = useNavigate();
   const isBookingStart = location.pathname === '/';
+  const theme = new URLSearchParams(location.search).get('motyw') === 'jasny' ? 'jasny' : 'ciemny';
+
+  function changeTheme(nextTheme: OfficeTheme) {
+    const params = new URLSearchParams(location.search);
+    params.set('motyw', nextTheme);
+    navigate({ pathname: location.pathname, search: `?${params}`, hash: location.hash }, { replace: true });
+  }
 
   useEffect(() => {
     const isPrivacy = location.pathname === '/polityka-prywatnosci';
@@ -49,8 +59,16 @@ export default function AppLayout() {
   }, []);
 
   return (
-    <div className="site-paper flex min-h-screen flex-col font-sans text-neutral-900 selection:bg-[#d4efe8]">
-      <header className="sticky top-0 z-20 border-b border-[#dfddd6] bg-[#f4f3ef]/92 px-5 py-3.5 backdrop-blur-md">
+    <div
+      className={
+        isBookingStart
+          ? 'office-site flex min-h-screen flex-col selection:bg-[#d4efe8]'
+          : 'site-paper flex min-h-screen flex-col font-sans text-neutral-900 selection:bg-[#d4efe8]'
+      }
+      data-office-theme={isBookingStart ? theme : undefined}
+    >
+      {isBookingStart ? <OfficeHeader theme={theme} onThemeChange={changeTheme} /> : (
+        <header className="sticky top-0 z-20 border-b border-[#dfddd6] bg-[#f4f3ef]/92 px-5 py-3.5 backdrop-blur-md">
         <div className="mx-auto flex w-full max-w-6xl flex-wrap items-start justify-between gap-x-6 gap-y-3">
           <Link
             to="/"
@@ -102,9 +120,10 @@ export default function AppLayout() {
             </NavLink>
           </div>
         </div>
-      </header>
+        </header>
+      )}
 
-      <main className={`mx-auto w-full flex-1 px-5 py-10 sm:py-14 ${isBookingStart ? 'max-w-[1440px] lg:px-8' : 'max-w-4xl'}`}>
+      <main className={isBookingStart ? 'w-full flex-1' : 'mx-auto w-full max-w-4xl flex-1 px-5 py-10 sm:py-14'}>
         <Outlet />
       </main>
 

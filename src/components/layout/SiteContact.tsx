@@ -1,3 +1,4 @@
+import { ArrowUpRight, Facebook } from 'lucide-react';
 import { site } from '../../config/site';
 
 function WhatsAppIcon({ className = 'h-4 w-4' }: { className?: string }) {
@@ -13,25 +14,17 @@ function WhatsAppIcon({ className = 'h-4 w-4' }: { className?: string }) {
 
 export default function SiteContact() {
   return (
-    <aside
-      aria-label="Kontakt przez WhatsApp"
-      className="rounded-[1.2rem] border border-[#e0ddd5] bg-white/95 px-5 py-4 shadow-[0_18px_50px_rgba(31,72,63,0.05)] backdrop-blur-sm sm:flex sm:items-center sm:justify-between sm:gap-5"
-    >
-      <div className="mb-3 sm:mb-0">
-        <p className="text-sm font-medium text-[#007865]">WhatsApp</p>
-        <p className="mt-0.5 text-xs leading-relaxed text-neutral-500">
-          Informacje i pliki. Potwierdzenie rezerwacji przychodzi na e-mail.
-        </p>
-      </div>
-      <a
-        href={site.whatsappUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#007865] px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-[#00594b] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#007865] focus-visible:ring-offset-2 sm:w-auto"
-      >
+    <div className="office-social">
+      <a href={site.facebookPageUrl} target="_blank" rel="noopener noreferrer">
+        <Facebook aria-hidden="true" />
+        Gabinet na Facebooku
+        <ArrowUpRight aria-hidden="true" />
+      </a>
+      <a href={site.whatsappUrl} target="_blank" rel="noopener noreferrer">
         <WhatsAppIcon />
         Napisz na WhatsApp
+        <ArrowUpRight aria-hidden="true" />
       </a>
-    </aside>
+    </div>
   );
 }

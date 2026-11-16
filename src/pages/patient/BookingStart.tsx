@@ -1,163 +1,205 @@
+import { addMonths, format, parseISO } from 'date-fns';
+import { pl } from 'date-fns/locale';
+import { ArrowRight, CalendarDays, ClipboardList, HeartHandshake, Laptop, MessageSquare, Newspaper, Stethoscope, UsersRound } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { bookingApi } from '../../services/bookingApi';
-import { VisitType } from '../../types';
-import { useBooking } from './BookingContext';
-import { formatZl, site, visitPriceZl } from '../../config/site';
-import { config } from '../../config/features';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import SiteContact from '../../components/layout/SiteContact';
-import OfficeNetworkBackdrop from '../../components/layout/OfficeNetworkBackdrop';
+import { config } from '../../config/features';
+import { site, visitPriceZl } from '../../config/site';
+import { slotRange } from '../../lib/schedule';
+import { bookingApi } from '../../services/bookingApi';
+import type { VisitType } from '../../types';
+import { useBooking } from './BookingContext';
+
+interface Availability {
+  date: string;
+  times: string[];
+}
+
+const warsawDate = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Warsaw', dateStyle: 'short' });
+
+async function getUpcomingAvailability(visitTypeId: string): Promise<Availability | null> {
+  const today = warsawDate.format(new Date());
+
+  for (let offset = 0; offset < 2; offset++) {
+    const month = addMonths(parseISO(today), offset);
+    const dates = await bookingApi.getAvailableDays(visitTypeId, month.getMonth() + 1, month.getFullYear());
+    const upcomingDates = dates.filter(date => date >= today).sort();
+    for (const date of upcomingDates.slice(0, 2)) {
+      const times = await bookingApi.getAvailableSlots(date, visitTypeId);
+      if (times.length) return { date, times: [...times].sort().slice(0, 3) };
+    }
+  }
+
+  return null;
+}
 
 export default function BookingStart() {
-  const [visitTypes, setVisitTypes] = useState<VisitType[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [visitTypes, setVisitTypes] = useState<VisitType[] | null>(null);
   const [scheduleOn, setScheduleOn] = useState<boolean | null>(config.API_MODE === 'production' ? null : true);
+  const [availability, setAvailability] = useState<Availability | null | undefined>();
+  const [selectedTime, setSelectedTime] = useState<string>();
   const navigate = useNavigate();
+  const { hash } = useLocation();
   const { updateState } = useBooking();
+  const previewVisit = visitTypes?.find(visit => visit.kind === 'first') ?? visitTypes?.[0];
+  const time = selectedTime ?? availability?.times[0];
 
   useEffect(() => {
-    bookingApi.getVisitTypes().then(types => {
-      setVisitTypes(types);
-      setLoading(false);
-    }).catch(() => setLoading(false));
+    let active = true;
+    bookingApi.getVisitTypes()
+      .then(types => { if (active) setVisitTypes(types); })
+      .catch(() => { if (active) setVisitTypes([]); });
+    if (config.API_MODE === 'production') {
+      bookingApi.getSiteStatus()
+        .then(status => { if (active) setScheduleOn(Boolean(status.schedule_enabled)); })
+        .catch(() => { if (active) setScheduleOn(false); });
+    }
+    return () => { active = false; };
   }, []);
 
   useEffect(() => {
-    if (config.API_MODE !== 'production') return;
-    let cancelled = false;
-    bookingApi.getSiteStatus()
-      .then((status) => {
-        if (!cancelled) setScheduleOn(Boolean(status.schedule_enabled));
-      })
-      .catch(() => {
-        if (!cancelled) setScheduleOn(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    if (!scheduleOn || !previewVisit) return;
+    let active = true;
+    getUpcomingAvailability(previewVisit.id)
+      .then(result => { if (active) setAvailability(result); })
+      .catch(() => { if (active) setAvailability(null); });
+    return () => { active = false; };
+  }, [scheduleOn, previewVisit]);
 
-  const handleSelect = (vt: VisitType) => {
-    updateState({ visitType: vt });
+  useEffect(() => {
+    if (hash) document.getElementById(hash.slice(1))?.scrollIntoView();
+  }, [hash]);
+
+  function chooseVisit(visitType: VisitType) {
+    updateState({ visitType, date: null, time: null, paymentMethod: undefined });
     navigate('/day');
-  };
+  }
+
+  function reservePreview() {
+    if (!previewVisit || !availability || !time) return;
+    updateState({ visitType: previewVisit, date: availability.date, time, paymentMethod: undefined });
+    navigate('/form');
+  }
+
+  const loading = visitTypes === null || scheduleOn === null;
 
   return (
-    <div className="relative isolate w-full animate-in fade-in slide-in-from-bottom-3 duration-500">
-      <OfficeNetworkBackdrop />
+    <>
+      <div className="office-opening">
+        <div className="office-width">
+          <section id="o-mnie" aria-labelledby="doctor-name" className="office-hero">
+            <div className="office-intro">
+              <p className="office-kicker">Lekarz psychiatra</p>
+              <h1 id="doctor-name">Marcin<br />Romanowski</h1>
+              <p className="office-subtitle">Specjalista psychiatrii <span aria-hidden="true">·</span> Lublin</p>
+              <p className="office-intro-copy">Konsultacje psychiatryczne dla dorosłych, w spokojnej atmosferze.</p>
+            </div>
+            <div className="office-portrait">
+              <img src={site.portraitSrc} alt={site.officeName} width={756} height={756} fetchPriority="high" />
+            </div>
+          </section>
 
-      <div className="relative z-10 mx-auto w-full max-w-lg">
-        <section aria-labelledby="doctor-name" className="text-center">
-        <div className="mx-auto h-[156px] w-[156px] overflow-hidden rounded-full bg-[#ebe8e1] shadow-[0_18px_50px_rgba(31,92,81,0.10)] ring-1 ring-[#d8d4cc]">
-          <img
-            src={site.portraitSrc}
-            alt={site.officeName}
-            width={156}
-            height={156}
-            fetchPriority="high"
-            className="h-full w-full object-cover object-top"
-          />
-        </div>
-        <h1 id="doctor-name" className="mt-5 text-[1.65rem] font-medium tracking-[-0.03em] text-[#007865] sm:text-[1.85rem]">
-          {site.officeDisplayName}
-        </h1>
-        <p className="mt-1.5 text-sm text-neutral-500">{site.officeTitle}</p>
-        <span
-          aria-hidden="true"
-          className="mx-auto mt-4 block h-px w-[min(72vw,280px)] bg-[#8da49f]/55"
-        />
-        </section>
-      </div>
+          <ul className="office-benefits" aria-label="Informacje o wizytach">
+            <li><HeartHandshake aria-hidden="true" /><span>Profesjonalna<br />pomoc</span></li>
+            <li><UsersRound aria-hidden="true" /><span>Indywidualne<br />podejście</span></li>
+            <li><CalendarDays aria-hidden="true" /><span>Wygodna<br />rezerwacja online</span></li>
+          </ul>
 
-      <div className="relative z-10 mx-auto mt-7 grid w-full max-w-5xl items-start gap-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(300px,0.85fr)] lg:gap-6">
-      <section
-        aria-labelledby="visit-type-heading"
-        className="rounded-[1.35rem] border border-[#dedbd3] bg-white/95 p-5 shadow-[0_24px_70px_rgba(31,72,63,0.07)] backdrop-blur-sm sm:p-6"
-      >
-        <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-neutral-400">
-          {scheduleOn === false ? 'Wizyty' : 'Umów wizytę'}
-        </p>
-        <h2 id="visit-type-heading" className="mt-1.5 text-xl font-medium tracking-[-0.015em] text-neutral-900">
-          {scheduleOn === false ? 'Rezerwacja online jest teraz wyłączona.' : 'Wybierz rodzaj wizyty'}
-        </h2>
-
-        <div className="mt-6 grid gap-3" aria-busy={loading || scheduleOn === null}>
-          {loading || scheduleOn === null ? (
-            <>
-              <div className="h-[70px] animate-pulse rounded-2xl bg-neutral-100" />
-              <div className="h-[70px] animate-pulse rounded-2xl bg-neutral-100" />
-            </>
-          ) : scheduleOn ? (
-            visitTypes.map(vt => (
-              <button
-                type="button"
-                key={vt.id}
-                onClick={() => handleSelect(vt)}
-                className="group flex w-full items-center justify-between rounded-xl border border-[#e4e1da] bg-white px-5 py-4 text-left transition-all hover:-translate-y-px hover:border-[#428276] hover:shadow-[0_10px_28px_rgba(31,92,81,0.07)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#007865] focus-visible:ring-offset-2"
-              >
-                <span>
-                  <span className="block text-sm font-medium text-neutral-900">{vt.name}</span>
-                  <span className="mt-1 block text-xs text-neutral-500">
-                    {vt.duration_minutes} min · {site.visitModeWord}
-                  </span>
-                </span>
-                <span className="ml-4 flex items-center gap-3">
-                  <span className="text-sm font-medium tabular-nums text-[#007865]">
-                    {formatZl(visitPriceZl(vt.kind, vt.price))}
-                  </span>
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#e7f4f1] text-[#007865] transition-colors group-hover:bg-[#007865] group-hover:text-white">
-                    <svg viewBox="0 0 20 20" aria-hidden="true" className="h-4 w-4" fill="none">
-                      <path d="m7.5 4.5 5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </span>
-                </span>
-              </button>
-            ))
-          ) : (
-            visitTypes.map(vt => (
-              <div
-                key={vt.id}
-                className="flex w-full items-center justify-between rounded-xl border border-[#e4e2dc] bg-white px-5 py-4 text-left"
-              >
-                <span>
-                  <span className="block text-sm font-medium text-neutral-900">{vt.name}</span>
-                  <span className="mt-1 block text-xs text-neutral-500">
-                    {vt.duration_minutes} min · {site.visitModeWord}
-                  </span>
-                </span>
-                <span className="ml-4 text-sm font-medium tabular-nums text-[#007865]">
-                  {formatZl(visitPriceZl(vt.kind, vt.price))}
-                </span>
+          <section id="rezerwacja" className="office-booking" aria-labelledby="office-booking-heading">
+            <div className="office-booking-main">
+              <div className="office-booking-title">
+                <CalendarDays aria-hidden="true" />
+                <div>
+                  <h2 id="office-booking-heading">Wybierz termin wizyty</h2>
+                  {availability && previewVisit && (
+                    <p>{format(parseISO(availability.date), 'EEEE, d MMMM yyyy', { locale: pl })} · {previewVisit.duration_minutes} min · {site.visitModeWord}</p>
+                  )}
+                </div>
               </div>
-            ))
-          )}
+              {availability && previewVisit ? (
+                <fieldset className="office-slots">
+                  <legend>{previewVisit.name} · Godzina</legend>
+                  <div>
+                    {availability.times.map(slot => (
+                      <label key={slot}>
+                        <input type="radio" name="office-time" checked={time === slot} onChange={() => setSelectedTime(slot)} />
+                        <span>{slotRange(slot, previewVisit.duration_minutes).replace('-', ' – ')}</span>
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+              ) : (
+                <p className="office-booking-status" role="status">
+                  {scheduleOn === false ? 'Terminy ustalamy przez WhatsApp.'
+                    : loading || (previewVisit && availability === undefined) ? 'Sprawdzam dostępne terminy…'
+                    : previewVisit ? 'Więcej terminów znajdziesz w kalendarzu.'
+                    : 'Terminarz jest chwilowo niedostępny.'}
+                </p>
+              )}
+            </div>
+            <div className="office-booking-action">
+              <Laptop aria-hidden="true" />
+              <div><h3>Wizyta online</h3><p>Potwierdzenie otrzymasz e-mailem.</p></div>
+              {scheduleOn === false || (!loading && !previewVisit) ? (
+                <a className="office-button" href={site.whatsappUrl} target="_blank" rel="noopener noreferrer">Napisz na WhatsApp <ArrowRight aria-hidden="true" /></a>
+              ) : availability ? (
+                <button className="office-button" type="button" onClick={reservePreview}>Zarezerwuj wizytę <ArrowRight aria-hidden="true" /></button>
+              ) : (
+                <button className="office-button" type="button" disabled={loading || !previewVisit} onClick={() => previewVisit && chooseVisit(previewVisit)}>Zobacz terminy <ArrowRight aria-hidden="true" /></button>
+              )}
+            </div>
+          </section>
         </div>
+      </div>
 
-        <p className="mt-5 text-xs leading-relaxed text-neutral-500">
-          {site.contactNote} {site.bookingConfirmNote}
-        </p>
-      </section>
-
-      <aside className="grid gap-5" aria-label="Informacje gabinetu">
-        <section
-          aria-labelledby="news-heading"
-          className="rounded-[1.35rem] border border-[#cddfd9] bg-[#e8f3f0]/95 p-5 shadow-[0_20px_55px_rgba(31,72,63,0.05)] backdrop-blur-sm sm:p-6"
-        >
-          <div className="flex items-center justify-between gap-4">
-            <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-[#39766b]">Aktualności</p>
-            <span className="h-2 w-2 rounded-full bg-[#e6816d]" aria-hidden="true" />
-          </div>
-          <h2 id="news-heading" className="mt-5 text-xl font-medium tracking-[-0.02em] text-neutral-900">
-            Konsultacje wznowione
-          </h2>
-          <p className="mt-3 text-sm leading-6 text-neutral-600">
-            Rezerwacja konsultacji online jest ponownie dostępna. Aktualne terminy można sprawdzić w terminarzu.
-          </p>
+      <div className="office-width office-content">
+        <section id="oferta" aria-labelledby="visit-type-heading" className="office-visit-types">
+          <h2 id="visit-type-heading"><Stethoscope aria-hidden="true" />{scheduleOn === false ? 'Rodzaje wizyt' : 'Wybierz rodzaj wizyty'}</h2>
+          <ul aria-busy={loading}>
+            {visitTypes?.map(visit => {
+              const Icon = visit.kind === 'followup' ? ClipboardList : MessageSquare;
+              const description = <>
+                <Icon aria-hidden="true" />
+                <span className="office-visit-name"><strong>{visit.name}</strong><small>{visit.duration_minutes} min · {site.visitModeWord}</small></span>
+                <span className="office-price">{visitPriceZl(visit.kind, visit.price)} zł</span>
+              </>;
+              return (
+                <li key={visit.id}>
+                  {scheduleOn ? (
+                    <button className="office-visit-row" type="button" onClick={() => chooseVisit(visit)}>
+                      {description}<span className="office-visit-arrow"><ArrowRight aria-hidden="true" /></span>
+                    </button>
+                  ) : <div className="office-visit-row">{description}</div>}
+                </li>
+              );
+            })}
+          </ul>
+          {!loading && visitTypes?.length === 0 && <p>O rodzaje wizyt zapytaj przez <a href={site.whatsappUrl}>WhatsApp</a>.</p>}
         </section>
 
+        <section id="aktualnosci" className="office-news" aria-labelledby="news-heading">
+          <h2 id="news-heading"><Newspaper aria-hidden="true" />Aktualności</h2>
+          <article>
+            <h3>Umawianie konsultacji</h3>
+            <p>{scheduleOn === true
+              ? 'Terminy pierwszych konsultacji i wizyt kontrolnych znajdziesz w kalendarzu. W sprawach organizacyjnych napisz przez WhatsApp.'
+              : 'O terminy konsultacji i sprawy organizacyjne zapytaj przez WhatsApp.'}</p>
+          </article>
           <SiteContact />
-      </aside>
+        </section>
+
+        <div className="office-more">
+          <section id="adhd" aria-labelledby="adhd-heading">
+            <h2 id="adhd-heading">ADHD u dorosłych</h2>
+            <p>Konsultacje dotyczą diagnozy ADHD u dorosłych i kontynuacji leczenia.</p>
+          </section>
+          <section id="dokumenty" aria-labelledby="documents-heading">
+            <h2 id="documents-heading">Dokumenty</h2>
+            <div><Link to="/zasady-rezerwacji">Zasady rezerwacji</Link><Link to="/polityka-prywatnosci">Polityka prywatności</Link></div>
+          </section>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

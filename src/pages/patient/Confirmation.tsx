@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useLocation, Link, Navigate } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
@@ -5,10 +6,14 @@ import { CheckCircle2 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Booking } from '../../types';
 import { config } from '../../config/features';
+import { bookingApi } from '../../services/bookingApi';
 
 export default function Confirmation() {
   const location = useLocation();
   const booking = location.state?.booking as Booking;
+  const paymentError = location.state?.paymentError as string | undefined;
+  const [paying, setPaying] = useState(false);
+  const [payError, setPayError] = useState<string | null>(paymentError || null);
 
   if (!booking) {
     return <Navigate to="/" replace />;
@@ -18,6 +23,24 @@ export default function Confirmation() {
   const managePath = `/manage/${booking.management_token}`;
   const isMock = config.API_MODE !== 'production';
   const mailFailed = !isMock && booking.mail_sent === false;
+  const paymentDue = booking.payment_status !== 'paid' && booking.status === 'pending_payment';
+
+  const startPayment = async () => {
+    setPaying(true);
+    setPayError(null);
+    try {
+      const result = await bookingApi.startPayment(booking.management_token);
+      if (result.ok && result.payment_url) {
+        window.location.assign(result.payment_url);
+        return;
+      }
+      throw new Error(result.error || 'Nie udało się rozpocząć płatności.');
+    } catch (err: any) {
+      setPayError(err.message || 'Nie udało się rozpocząć płatności.');
+    } finally {
+      setPaying(false);
+    }
+  };
 
   return (
     <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-md mx-auto w-full text-center mt-4">
@@ -52,15 +75,27 @@ export default function Confirmation() {
               </div>
               <div className="flex justify-between py-2 border-b border-neutral-100">
                 <span className="text-neutral-500 font-light">Status</span>
-                <span className="font-medium text-right text-neutral-900">Oczekuje na potwierdzenie</span>
+                <span className="font-medium text-right text-neutral-900">
+                  {paymentDue ? 'Oczekuje na płatność' : 'Oczekuje na potwierdzenie'}
+                </span>
               </div>
           </div>
         </div>
 
         <div className="grid gap-3">
-          <Button asChild className="w-full h-12">
-            <Link to={managePath}>Potwierdź wizytę</Link>
-          </Button>
+          {paymentDue && (
+            <>
+              <Button onClick={() => void startPayment()} disabled={paying} className="w-full h-12">
+                {paying ? 'Przekierowuję...' : 'Przejdź do płatności online'}
+              </Button>
+              {payError && <p className="text-xs text-red-600 text-center">{payError}</p>}
+            </>
+          )}
+          {!paymentDue && (
+            <Button asChild className="w-full h-12">
+              <Link to={managePath}>Potwierdź wizytę</Link>
+            </Button>
+          )}
           <Button asChild variant="outline" className="w-full h-12">
             <Link to={managePath}>Anuluj wizytę</Link>
           </Button>

@@ -3,6 +3,9 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/bootstrap.php';
 require_once __DIR__ . '/whatsapp.php';
+require_once __DIR__ . '/smsapi.php';
+require_once __DIR__ . '/payments.php';
+require_once __DIR__ . '/mydr.php';
 
 $route = $api_route ?? api_route();
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
@@ -380,6 +383,7 @@ function realign_future_bookings(PDO $pdo, string $fromDate): array
                 if ($newStart !== $current) {
                     $update = $pdo->prepare('UPDATE bookings SET start_time = ?, end_time = ? WHERE id = ?');
                     $update->execute([$newStart, $newEnd, $booking['id']]);
+                    mydr_sync_after_response((string) $booking['id']);
                     $moved[] = [
                         'id' => (string) $booking['id'],
                         'booking_date' => $date,
@@ -437,6 +441,8 @@ try {
         }
         if ($stmt->rowCount() > 0) {
             notify_owner_cancel($booking);
+            smsapi_send_auto($pdo, $booking, 'booking_cancelled');
+            mydr_sync_after_response((string) $booking['id']);
         }
         json_response($booking);
     }
@@ -454,8 +460,12 @@ try {
         if ($booking['status'] === 'cancelled') {
             json_response(['error' => 'Nie można potwierdzić anulowanej wizyty'], 409);
         }
+        if (payment_gateway_configured() && payments_booking_requires_payment($pdo, $booking)) {
+            json_response(['error' => 'Najpierw opłać wizytę online.'], 409);
+        }
         $stmt = $pdo->prepare("UPDATE bookings SET status = 'confirmed' WHERE management_token = ? AND status != 'cancelled'");
         $stmt->execute([$token]);
+        mydr_sync_after_response((string) $booking['id']);
         json_response(fetch_booking_by_token($pdo, $token));
     }
 
@@ -512,6 +522,9 @@ try {
                     $id = uniqid('b_', true);
                     $token = bin2hex(random_bytes(16));
                     $end = from_minutes(minutes($start) + (int) $visitType['duration_minutes']);
+                    $initialStatus = (string) ($visitType['payment_policy'] ?? 'optional') === 'required'
+                        ? 'pending_payment'
+                        : 'pending';
 
                     $stmt = $pdo->prepare(
                         'INSERT INTO bookings (id, visit_type_id, booking_date, start_time, end_time, patient_name, patient_email, patient_phone, status, payment_status, management_token)
@@ -526,7 +539,7 @@ try {
                         $name,
                         $email,
                         $phone,
-                        'pending',
+                        $initialStatus,
                         'unpaid',
                         $token,
                     ]);
@@ -548,6 +561,13 @@ try {
         $mailSent = send_booking_mail($booking);
         $ownerMailSent = send_owner_booking_mail($booking);
         $ownerWhatsappSent = send_owner_booking_whatsapp($booking);
+        try {
+            whatsapp_upsert_booking_thread($pdo, $booking);
+        } catch (Throwable $error) {
+            error_log('WhatsApp booking thread sync failed: ' . $error->getMessage());
+        }
+        smsapi_send_auto($pdo, $booking, 'booking_created');
+        mydr_sync_after_response((string) $booking['id']);
         json_response($booking + [
             'mail_sent' => $mailSent,
             'owner_mail_sent' => $ownerMailSent,
@@ -574,6 +594,73 @@ try {
         }
         $sent = send_whatsapp_text($to, 'Test z rezerwacji: WhatsApp API działa.');
         json_response(['ok' => $sent, 'to' => whatsapp_digits($to)]);
+    }
+
+    if ($route === '/admin/sms/status' && $method === 'GET') {
+        require_admin();
+        json_response([
+            'configured' => smsapi_configured(),
+            'callback_configured' => smsapi_callback_configured(),
+        ]);
+    }
+
+    if ($route === '/admin/sms/messages' && $method === 'GET') {
+        require_admin();
+        $bookingId = trim((string) ($_GET['booking_id'] ?? ''));
+        if ($bookingId === '' || strlen($bookingId) > 36) {
+            json_response(['error' => 'Podaj poprawny booking_id.'], 400);
+        }
+        $stmt = $pdo->prepare(
+            'SELECT provider_message_id, purpose, status_code, status_name, provider_error_code, submitted_at, delivered_at, created_at
+             FROM smsapi_messages WHERE booking_id = ? ORDER BY id DESC LIMIT 50'
+        );
+        $stmt->execute([$bookingId]);
+        json_response($stmt->fetchAll());
+    }
+
+    if ($route === '/admin/sms/templates' && $method === 'GET') {
+        require_admin();
+        $bookingId = trim((string) ($_GET['booking_id'] ?? ''));
+        $booking = $bookingId !== '' ? fetch_booking_by_id($pdo, $bookingId) : null;
+        if (!$booking) {
+            json_response(['error' => 'Nie znaleziono rezerwacji.'], 404);
+        }
+        json_response([
+            'to' => smsapi_normalize_phone((string) ($booking['patient_phone'] ?? '')),
+            'templates' => smsapi_booking_templates($booking),
+        ]);
+    }
+
+    if ($route === '/admin/sms/send' && $method === 'POST') {
+        require_admin();
+        $data = json_input();
+        $bookingId = trim((string) ($data['booking_id'] ?? ''));
+        $templateId = trim((string) ($data['template_id'] ?? ''));
+        $booking = $bookingId !== '' ? fetch_booking_by_id($pdo, $bookingId) : null;
+        if ($bookingId !== '' && !$booking) {
+            json_response(['ok' => false, 'error' => 'Nie znaleziono rezerwacji.'], 404);
+        }
+        $message = (string) ($data['message'] ?? '');
+        $to = (string) ($data['to'] ?? ($booking['patient_phone'] ?? ''));
+        $purpose = substr(trim((string) ($data['purpose'] ?? 'admin')), 0, 32) ?: 'admin';
+        if ($templateId !== '' && $booking) {
+            $rendered = smsapi_render_template($templateId, $booking);
+            if ($rendered === null) {
+                json_response(['ok' => false, 'error' => 'Nie znaleziono szablonu SMS.'], 400);
+            }
+            if (trim($message) === '') {
+                $message = (string) $rendered['message'];
+            }
+            $purpose = $purpose === 'admin' ? 'admin_' . substr($templateId, 0, 20) : $purpose;
+        }
+        $result = smsapi_send(
+            $pdo,
+            $to,
+            $message,
+            $booking ? (string) $booking['id'] : null,
+            $purpose
+        );
+        json_response($result, $result['ok'] ? 200 : 400);
     }
 
     if ($route === '/admin/bookings' && $method === 'GET') {
@@ -667,6 +754,13 @@ try {
         if (!$booking) {
             json_response(['error' => 'Nie udało się zapisać terminu.'], 500);
         }
+        try {
+            whatsapp_upsert_booking_thread($pdo, $booking);
+        } catch (Throwable $error) {
+            error_log('WhatsApp admin booking thread sync failed: ' . $error->getMessage());
+        }
+        smsapi_send_auto($pdo, $booking, 'booking_created');
+        mydr_sync_after_response((string) $booking['id']);
         json_response($booking);
     }
 
@@ -691,7 +785,9 @@ try {
         }
         if ($before && $before['status'] !== 'cancelled' && $stmt->rowCount() > 0) {
             notify_owner_cancel($booking);
+            smsapi_send_auto($pdo, $booking, 'booking_cancelled');
         }
+        mydr_sync_after_response((string) $booking['id']);
         json_response($booking);
     }
 
@@ -727,7 +823,12 @@ try {
         if ($requestError !== null) {
             json_response(['error' => $requestError], 409);
         }
-        json_response(fetch_booking_by_id($pdo, $m[1]));
+        $updated = fetch_booking_by_id($pdo, $m[1]);
+        if ($updated) {
+            smsapi_send_auto($pdo, $updated, 'booking_rescheduled');
+            mydr_sync_after_response((string) $updated['id']);
+        }
+        json_response($updated);
     }
 
     if (preg_match('#^/admin/bookings/([^/]+)/status$#', $route, $m) && $method === 'PUT') {
@@ -747,7 +848,9 @@ try {
         }
         if ($status === 'cancelled' && $before && $before['status'] !== 'cancelled') {
             notify_owner_cancel($booking);
+            smsapi_send_auto($pdo, $booking, 'booking_cancelled');
         }
+        mydr_sync_after_response((string) $booking['id']);
         json_response($booking);
     }
 

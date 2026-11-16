@@ -38,8 +38,7 @@ function visit_report_start_date(): string
 function visit_report_cancel_password(): string
 {
     global $config;
-    $password = trim((string) ($config['visit_report_cancel_password'] ?? '12345'));
-    return $password !== '' ? $password : '12345';
+    return trim((string) ($config['visit_report_cancel_password'] ?? ''));
 }
 
 function visit_report_signing_key(): string
@@ -646,7 +645,7 @@ function visit_report_render_cancel_page(string $title, string $message, ?array 
             . '<input type="hidden" name="sig" value="' . $h($signature) . '">'
             . '<label style="display:block;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:#6b7280;margin-bottom:6px;">Hasło odwołania</label>'
             . '<input type="password" name="password" required style="width:100%;max-width:280px;height:40px;padding:0 12px;border:1px solid #d6d3cc;border-radius:8px;">'
-            . '<p style="margin:8px 0 12px;font-size:12px;color:#6b7280;">Wpisz hasło: <strong>12345</strong></p>'
+            . '<p style="margin:8px 0 12px;font-size:12px;color:#6b7280;">Użyj prywatnego hasła odwołania gabinetu.</p>'
             . '<button type="submit" style="height:40px;padding:0 14px;border:1px solid #a04a3a;border-radius:8px;background:#fff5f2;color:#a04a3a;font-weight:600;cursor:pointer;">Odwołaj wizytę</button>'
             . '</form>';
     }
@@ -680,6 +679,12 @@ function visit_report_handle_cancel_route(PDO $pdo, string $method): void
     if (!$booking) {
         visit_report_render_cancel_page('Brak wizyty', 'Nie znaleziono wizyty dla tego linku.');
     }
+    if (visit_report_cancel_password() === '') {
+        visit_report_render_cancel_page(
+            'Odwołanie niedostępne',
+            'Hasło odwołania nie zostało skonfigurowane. Otwórz panel wizyt.'
+        );
+    }
 
     if ($method === 'GET') {
         visit_report_render_cancel_page(
@@ -693,6 +698,16 @@ function visit_report_handle_cancel_route(PDO $pdo, string $method): void
     }
 
     $password = trim((string) ($_POST['password'] ?? ''));
+    $rate = rate_limit_consume('visit-report-cancel', 10, 900);
+    if (empty($rate['allowed'])) {
+        header('Retry-After: ' . (int) ($rate['retry_after'] ?? 60));
+        visit_report_render_cancel_page(
+            'Zbyt wiele prób',
+            'Spróbuj ponownie za kilkanaście minut.',
+            $booking,
+            false,
+        );
+    }
     if (!hash_equals(visit_report_cancel_password(), $password)) {
         visit_report_render_cancel_page(
             'Błędne hasło',
@@ -703,6 +718,7 @@ function visit_report_handle_cancel_route(PDO $pdo, string $method): void
             $signature,
         );
     }
+    rate_limit_clear('visit-report-cancel');
 
     $stmt = $pdo->prepare("UPDATE bookings SET status = 'cancelled' WHERE management_token = ? AND status != 'cancelled'");
     $stmt->execute([$token]);
@@ -721,7 +737,7 @@ function visit_report_handle_cancel_route(PDO $pdo, string $method): void
 
 function visit_report_handle_route(string $route, string $method): bool
 {
-    if ($route === '/admin/reports/visit/send-test' && $method === 'POST') {
+    if (($route === '/admin/reports/visit/send-test' || $route === '/admin/reports/visit/send') && $method === 'POST') {
         require_admin();
         $pdo = db();
         $data = json_input();
@@ -737,7 +753,10 @@ function visit_report_handle_route(string $route, string $method): bool
             $tomorrow = date('Y-m-d', strtotime($today . ' +1 day'));
             $dates = [$today, $tomorrow];
         }
-        json_response(visit_report_send_for_dates($pdo, $dates, true));
+        $test = array_key_exists('test', $data)
+            ? (bool) $data['test']
+            : ($route === '/admin/reports/visit/send-test');
+        json_response(visit_report_send_for_dates($pdo, $dates, $test));
     }
 
     if ($route === '/visit-report/cancel' && in_array($method, ['GET', 'POST'], true)) {
