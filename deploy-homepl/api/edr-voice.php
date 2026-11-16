@@ -46,7 +46,7 @@ function edr_voice_config(): array
         'office_id' => (int) ($edr['office_id'] ?? $config['edr_office_id'] ?? $config['mydr_office_id'] ?? getenv('EDR_OFFICE_ID') ?: 0),
         'spoken_sync_enabled' => filter_var(
             $edr['spoken_note_sync_enabled']
-                ?? ($config['edr_spoken_note_sync_enabled'] ?? ($config['mydr_enabled'] ?? getenv('EDR_SPOKEN_NOTE_SYNC_ENABLED'))),
+                ?? ($config['edr_spoken_note_sync_enabled'] ?? getenv('EDR_SPOKEN_NOTE_SYNC_ENABLED')),
             FILTER_VALIDATE_BOOL,
             FILTER_NULL_ON_FAILURE
         ) ?? false,
@@ -290,14 +290,6 @@ function edr_voice_linked_candidate(array $settings, array $booking): ?array
         return null;
     }
     $pdo = db();
-    $sync = mydr_sync_booking($pdo, $bookingId);
-    if (empty($sync['ok'])) {
-        if (($sync['status'] ?? '') === 'disabled') {
-            return null;
-        }
-        $error = trim((string) ($sync['error'] ?? ''));
-        throw new RuntimeException($error !== '' ? $error : 'Nie udało się podpiąć wizyty w EDR.');
-    }
     $link = mydr_link($pdo, $bookingId);
     $visitId = (int) ($link['visit_id'] ?? 0);
     if ($visitId < 1) {
