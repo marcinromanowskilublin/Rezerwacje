@@ -526,7 +526,7 @@ function payments_register_payu(PDO $pdo, array $booking): array
         'extOrderId' => $paymentId,
         'currencyCode' => $currency,
         'totalAmount' => (string) $amountGrosz,
-        'validityTime' => date('c', time() + payments_open_attempt_minutes() * 60),
+        'validityTime' => payments_open_attempt_minutes() * 60,
         'buyer' => [
             'email' => (string) ($booking['patient_email'] ?? ''),
             'phone' => preg_replace('/\D+/', '', (string) ($booking['patient_phone'] ?? '')) ?: '',

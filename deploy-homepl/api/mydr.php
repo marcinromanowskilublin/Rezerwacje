@@ -198,16 +198,39 @@ function mydr_split_name(string $full): array
 function mydr_phone_variants(string $phone): array
 {
     $digits = preg_replace('/\D+/', '', $phone) ?? '';
-    if (strlen($digits) === 11 && strpos($digits, '48') === 0) {
-        $digits = substr($digits, 2);
-    }
     if ($digits === '') {
         return [];
     }
-    if (strlen($digits) === 9) {
-        return [$digits, '+48' . $digits, '48' . $digits];
+    $normalized = $digits;
+    if (strpos($normalized, '00') === 0) {
+        $normalized = substr($normalized, 2);
     }
-    return [$digits, '+' . $digits];
+    if (strlen($normalized) === 11 && strpos($normalized, '48') === 0) {
+        $normalized = substr($normalized, 2);
+    }
+    if (strlen($normalized) === 10 && strpos($normalized, '0') === 0) {
+        $normalized = substr($normalized, 1);
+    }
+    $variants = [];
+    $add = static function (string $value) use (&$variants): void {
+        if ($value !== '' && !in_array($value, $variants, true)) {
+            $variants[] = $value;
+        }
+    };
+    if (strlen($normalized) === 9) {
+        foreach ([$normalized, '+48' . $normalized, '48' . $normalized, '0' . $normalized, '00' . $normalized, '0048' . $normalized] as $variant) {
+            $add($variant);
+        }
+        $add($digits);
+        return $variants;
+    }
+    $add($digits);
+    $add('+' . $digits);
+    if ($normalized !== $digits) {
+        $add($normalized);
+        $add('+' . $normalized);
+    }
+    return $variants;
 }
 
 function mydr_same_surname(string $a, string $b): bool
