@@ -108,6 +108,7 @@ Integracja płatności jest domyślnie wyłączona. Kod nie przechowuje danych k
 2. W panelu PayU odczytaj dane POS: `POS ID`, `OAuth client_id`, `OAuth client_secret` i `Second key (MD5)`.
 3. W `rezerwacja/config/config.php` ustaw:
    - `payment_gateway_enabled` na `true`,
+   - `payment_require_before_confirmation` na `true` dopiero wtedy, gdy chcesz realnie wymagać płatności przed potwierdzeniem wizyty,
    - `payment_gateway_provider` na `payu`,
    - `payment_gateway_environment` i `payu_environment` na `production`,
    - `payu_pos_id`, `payu_client_id`, `payu_client_secret`, `payu_second_key`.

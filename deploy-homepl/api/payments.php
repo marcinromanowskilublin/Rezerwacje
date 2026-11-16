@@ -13,6 +13,12 @@ function payment_gateway_provider(): string
     return strtolower(trim((string) ($config['payment_gateway_provider'] ?? 'payu')));
 }
 
+function payment_requirement_enabled(): bool
+{
+    global $config;
+    return !empty($config['payment_require_before_confirmation']);
+}
+
 function payment_gateway_configured(): bool
 {
     global $config;
@@ -40,6 +46,7 @@ function payment_gateway_status(): array
     return [
         'enabled' => payment_gateway_enabled(),
         'configured' => payment_gateway_configured(),
+        'require_before_confirmation' => payment_requirement_enabled(),
         'provider' => payment_gateway_provider(),
         'environment' => strtolower(trim((string) ($config['payment_gateway_environment'] ?? $config['payu_environment'] ?? 'sandbox'))) === 'production'
             ? 'production'
@@ -71,7 +78,8 @@ function payments_visit_type(PDO $pdo, array $booking): ?array
 
 function payments_visit_type_requires_payment(?array $visitType): bool
 {
-    return (string) ($visitType['payment_policy'] ?? 'optional') === 'required'
+    return payment_requirement_enabled()
+        && (string) ($visitType['payment_policy'] ?? 'optional') === 'required'
         && (float) ($visitType['price'] ?? 0) > 0;
 }
 

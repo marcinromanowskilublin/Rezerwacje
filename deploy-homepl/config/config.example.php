@@ -158,6 +158,8 @@ $config = [
     // Bramka płatnicza. Domyślnie wyłączona; nie wpisuj danych w repozytorium.
     // PayU: dane znajdziesz w panelu sprzedawcy w konfiguracji POS.
     'payment_gateway_enabled' => false,
+    // false: nawet typy wizyt oznaczone jako "required" rezerwują się bez wymagania płatności.
+    'payment_require_before_confirmation' => false,
     'payment_gateway_provider' => 'payu',
     'payment_gateway_environment' => 'production', // production albo sandbox
     'payment_time_limit_minutes' => 30,
