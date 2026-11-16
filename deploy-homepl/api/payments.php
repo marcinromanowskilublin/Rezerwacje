@@ -175,7 +175,10 @@ function payments_create_local_payment(PDO $pdo, array $booking, int $amountGros
 
 function payments_mark_booking_payment_pending(PDO $pdo, array $booking): void
 {
-    $nextStatus = payments_booking_requires_payment($pdo, $booking) ? 'pending_payment' : (string) ($booking['status'] ?? 'pending');
+    $currentStatus = (string) ($booking['status'] ?? 'pending');
+    $nextStatus = payments_booking_requires_payment($pdo, $booking) && $currentStatus === 'pending'
+        ? 'pending_payment'
+        : $currentStatus;
     $stmt = $pdo->prepare('UPDATE bookings SET payment_status = ?, status = ? WHERE id = ? AND status != ?');
     $stmt->execute(['pending', $nextStatus, (string) $booking['id'], 'cancelled']);
 }
@@ -235,8 +238,8 @@ function payments_register_przelewy24(PDO $pdo, array $booking): array
     $payload = $result['payload'] ?? [];
     $token = is_array($payload) ? (string) ($payload['data']['token'] ?? $payload['token'] ?? '') : '';
     if (empty($result['ok']) || $token === '') {
-        $pdo->prepare("UPDATE payments SET status = 'failed' WHERE id = ?")->execute([$paymentId]);
-        $pdo->prepare("UPDATE bookings SET payment_status = 'failed' WHERE id = ?")->execute([(string) $booking['id']]);
+        $pdo->prepare("UPDATE payments SET status = 'failed' WHERE id = ? AND status != 'paid'")->execute([$paymentId]);
+        $pdo->prepare("UPDATE bookings SET payment_status = 'failed' WHERE id = ? AND payment_status != 'paid'")->execute([(string) $booking['id']]);
         error_log('Przelewy24 register failed: ' . json_encode($result, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
         return ['ok' => false, 'error' => 'Nie udało się rozpocząć płatności.'];
     }
@@ -430,8 +433,8 @@ function payments_register_payu(PDO $pdo, array $booking): array
         $redirectUri = (string) $result['headers']['location'];
     }
     if (empty($result['ok']) || $redirectUri === '') {
-        $pdo->prepare("UPDATE payments SET status = 'failed' WHERE id = ?")->execute([$paymentId]);
-        $pdo->prepare("UPDATE bookings SET payment_status = 'failed' WHERE id = ?")->execute([(string) $booking['id']]);
+        $pdo->prepare("UPDATE payments SET status = 'failed' WHERE id = ? AND status != 'paid'")->execute([$paymentId]);
+        $pdo->prepare("UPDATE bookings SET payment_status = 'failed' WHERE id = ? AND payment_status != 'paid'")->execute([(string) $booking['id']]);
         error_log('PayU order create failed: ' . json_encode($result, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
         return ['ok' => false, 'error' => 'Nie udało się rozpocząć płatności PayU.'];
     }
@@ -522,28 +525,42 @@ function payments_handle_payu_notification(PDO $pdo, string $rawBody, array $dat
         return ['ok' => false, 'error' => 'Kwota płatności PayU nie zgadza się z rezerwacją.'];
     }
 
+    $bookingStmt = $pdo->prepare('SELECT id, status, payment_status FROM bookings WHERE id = ? LIMIT 1');
+    $bookingStmt->execute([(string) $payment['booking_id']]);
+    $booking = $bookingStmt->fetch();
+    if (!$booking) {
+        return ['ok' => false, 'error' => 'Nie znaleziono rezerwacji dla płatności PayU.'];
+    }
+
     if ($status === 'COMPLETED') {
         $pdo->prepare("UPDATE payments SET status = 'paid', external_payment_id = ?, paid_at = NOW() WHERE id = ?")
             ->execute([$orderId !== '' ? 'order:' . $orderId : (string) ($payment['external_payment_id'] ?? ''), $paymentId]);
+        if ((string) ($booking['status'] ?? '') === 'cancelled') {
+            return ['ok' => true, 'booking_cancelled' => true];
+        }
         $pdo->prepare(
             "UPDATE bookings
              SET payment_status = 'paid',
                  status = CASE WHEN status = 'pending_payment' THEN 'confirmed' ELSE status END
-             WHERE id = ?"
+             WHERE id = ? AND status != 'cancelled'"
         )->execute([(string) $payment['booking_id']]);
         mydr_sync_after_response((string) $payment['booking_id']);
         return ['ok' => true];
     }
 
+    if ((string) ($payment['status'] ?? '') === 'paid') {
+        return ['ok' => true, 'already_paid' => true];
+    }
+
     if (in_array($status, ['CANCELED', 'REJECTED'], true)) {
-        $pdo->prepare("UPDATE payments SET status = 'failed', external_payment_id = ? WHERE id = ?")
+        $pdo->prepare("UPDATE payments SET status = 'failed', external_payment_id = ? WHERE id = ? AND status != 'paid'")
             ->execute([$orderId !== '' ? 'order:' . $orderId : (string) ($payment['external_payment_id'] ?? ''), $paymentId]);
         $pdo->prepare("UPDATE bookings SET payment_status = 'failed' WHERE id = ? AND payment_status != 'paid'")
             ->execute([(string) $payment['booking_id']]);
         return ['ok' => true];
     }
 
-    $pdo->prepare("UPDATE payments SET status = 'pending', external_payment_id = ? WHERE id = ?")
+    $pdo->prepare("UPDATE payments SET status = 'pending', external_payment_id = ? WHERE id = ? AND status != 'paid'")
         ->execute([$orderId !== '' ? 'order:' . $orderId : (string) ($payment['external_payment_id'] ?? ''), $paymentId]);
     $pdo->prepare("UPDATE bookings SET payment_status = 'pending' WHERE id = ? AND payment_status != 'paid'")
         ->execute([(string) $payment['booking_id']]);
@@ -627,11 +644,20 @@ function payments_verify_przelewy24_notification(PDO $pdo, array $data): array
 
     $pdo->prepare("UPDATE payments SET status = 'paid', external_payment_id = ?, paid_at = NOW() WHERE id = ?")
         ->execute(['order:' . $orderId, $sessionId]);
+    $bookingStmt = $pdo->prepare('SELECT id, status FROM bookings WHERE id = ? LIMIT 1');
+    $bookingStmt->execute([(string) $payment['booking_id']]);
+    $booking = $bookingStmt->fetch();
+    if (!$booking) {
+        return ['ok' => false, 'error' => 'Nie znaleziono rezerwacji dla płatności.'];
+    }
+    if ((string) ($booking['status'] ?? '') === 'cancelled') {
+        return ['ok' => true, 'booking_cancelled' => true];
+    }
     $pdo->prepare(
         "UPDATE bookings
          SET payment_status = 'paid',
              status = CASE WHEN status = 'pending_payment' THEN 'confirmed' ELSE status END
-         WHERE id = ?"
+         WHERE id = ? AND status != 'cancelled'"
     )->execute([(string) $payment['booking_id']]);
     mydr_sync_after_response((string) $payment['booking_id']);
 

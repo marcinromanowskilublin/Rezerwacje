@@ -419,6 +419,12 @@ function mydr_sync_booking(PDO $pdo, string $bookingId): array
 
         $existing = mydr_find_existing_visit($pdo, $patientId, $booking);
         if ($existing !== null) {
+            $response = mydr_api($pdo, 'PATCH', 'visits/' . $existing . '/', mydr_visit_update_payload($booking));
+            if ($response['status'] !== 200) {
+                $error = mydr_api_error($response);
+                mydr_save_link($pdo, $bookingId, $patientId, $existing, 'error', $error);
+                return ['ok' => false, 'status' => 'error', 'error' => $error];
+            }
             mydr_save_link($pdo, $bookingId, $patientId, $existing, 'synced');
             return ['ok' => true, 'status' => 'synced', 'visit_id' => $existing];
         }
