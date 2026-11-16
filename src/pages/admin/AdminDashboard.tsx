@@ -2,10 +2,19 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { addDays, format, parseISO, startOfToday } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import { bookingApi } from '../../services/bookingApi';
-import { AvailabilityRule, BlockedPeriod, Booking, BookingStatus, SlotAudience, VisitType } from '../../types';
+import {
+  AvailabilityRule,
+  BlockedPeriod,
+  Booking,
+  BookingStatus,
+  SlotAudience,
+  SmsTemplate,
+  VisitType,
+} from '../../types';
 import { Button, cn } from '../../components/ui/Button';
 import { AUDIENCE_OPTIONS, WEEKDAYS } from '../../lib/schedule';
 import AdminGate from './AdminGate';
+import EdrVoiceVisit from './EdrVoiceVisit';
 
 const statusLabel: Record<string, string> = {
   pending: 'Oczekuje',
@@ -48,13 +57,6 @@ function normalizePhone(value: string): string {
 function phoneHref(value: string): string {
   const digits = normalizePhone(value);
   return digits ? `tel:+${digits}` : '#';
-}
-
-function smsHref(value: string, patientName: string): string {
-  const digits = normalizePhone(value);
-  if (!digits) return '#';
-  const body = encodeURIComponent(`Dzień dobry, ${patientName}. To wiadomość z gabinetu dotycząca wizyty.`);
-  return `sms:+${digits}?body=${body}`;
 }
 
 function whatsappHref(value: string, patientName: string): string {
@@ -136,6 +138,16 @@ function AdminBookings() {
   const [realigning, setRealigning] = useState(false);
   const [realignMessage, setRealignMessage] = useState<string | null>(null);
   const [realignError, setRealignError] = useState<string | null>(null);
+  const [smsBooking, setSmsBooking] = useState<Booking | null>(null);
+  const [smsTemplates, setSmsTemplates] = useState<SmsTemplate[]>([]);
+  const [smsTemplateId, setSmsTemplateId] = useState('');
+  const [smsMessage, setSmsMessage] = useState('');
+  const [smsTo, setSmsTo] = useState('');
+  const [smsLoading, setSmsLoading] = useState(false);
+  const [smsSending, setSmsSending] = useState(false);
+  const [smsError, setSmsError] = useState<string | null>(null);
+  const [smsSuccess, setSmsSuccess] = useState<string | null>(null);
+  const [edrVoiceBooking, setEdrVoiceBooking] = useState<Booking | null>(null);
 
   const [bookingDraft, setBookingDraft] = useState<BookingDraft>({
     visit_type_id: '',
@@ -278,6 +290,59 @@ function AdminBookings() {
     await bookingApi.cancelBooking(id);
     await refreshMeta();
     await refreshDay(selectedDate);
+  };
+
+  const openSms = async (booking: Booking) => {
+    setSmsBooking(booking);
+    setSmsTemplates([]);
+    setSmsTemplateId('');
+    setSmsMessage('');
+    setSmsTo(normalizePhone(booking.patient_phone));
+    setSmsError(null);
+    setSmsSuccess(null);
+    setSmsLoading(true);
+    try {
+      const result = await bookingApi.getSmsTemplates(booking.id);
+      setSmsTemplates(result.templates);
+      setSmsTo(result.to || normalizePhone(booking.patient_phone));
+      const firstTemplate = result.templates[0];
+      if (firstTemplate) {
+        setSmsTemplateId(firstTemplate.id);
+        setSmsMessage(firstTemplate.message);
+      }
+    } catch (err: any) {
+      setSmsError(err.message || 'Nie udało się pobrać szablonów SMS.');
+    } finally {
+      setSmsLoading(false);
+    }
+  };
+
+  const chooseSmsTemplate = (id: string) => {
+    setSmsTemplateId(id);
+    const template = smsTemplates.find((item) => item.id === id);
+    if (template) setSmsMessage(template.message);
+  };
+
+  const sendSms = async () => {
+    if (!smsBooking || smsSending) return;
+    setSmsSending(true);
+    setSmsError(null);
+    setSmsSuccess(null);
+    try {
+      const result = await bookingApi.sendSms({
+        booking_id: smsBooking.id,
+        template_id: smsTemplateId,
+        to: smsTo,
+        message: smsMessage,
+        purpose: smsTemplateId ? `admin_${smsTemplateId}` : 'admin',
+      });
+      if (!result.ok) throw new Error(result.error || 'Nie udało się wysłać SMS.');
+      setSmsSuccess(`SMS wysłany. Status: ${result.status || 'przyjęty'}.`);
+    } catch (err: any) {
+      setSmsError(err.message || 'Nie udało się wysłać SMS.');
+    } finally {
+      setSmsSending(false);
+    }
   };
 
   const realignToLatest = async () => {
@@ -558,6 +623,7 @@ function AdminBookings() {
               >
                 <option value="all">Wszystkie statusy</option>
                 <option value="pending">Oczekuje</option>
+                <option value="pending_payment">Płatność</option>
                 <option value="confirmed">Potwierdzona</option>
                 <option value="completed">Zakończona</option>
                 <option value="no_show">Nieobecność</option>
@@ -597,12 +663,19 @@ function AdminBookings() {
                           <td className="px-3 py-3 text-neutral-700">
                             <p>{typeName(booking.visit_type_id)}</p>
                             <p className="text-xs text-neutral-500">{statusLabel[booking.status] || booking.status}</p>
+                            <p className="text-xs text-neutral-500">Płatność: {booking.payment_status}</p>
                           </td>
                           <td className="px-3 py-3">
                             <div className="flex flex-wrap gap-1.5">
                               {booking.patient_phone && (
                                 <>
-                                  <a className="rounded-md border border-neutral-200 px-2 py-1 text-xs hover:bg-neutral-50" href={smsHref(booking.patient_phone, booking.patient_name)}>SMS</a>
+                                  <button
+                                    type="button"
+                                    className="rounded-md border border-neutral-200 px-2 py-1 text-xs hover:bg-neutral-50"
+                                    onClick={() => void openSms(booking)}
+                                  >
+                                    SMS
+                                  </button>
                                   <a className="rounded-md border border-neutral-200 px-2 py-1 text-xs hover:bg-neutral-50" href={whatsappHref(booking.patient_phone, booking.patient_name)} target="_blank" rel="noopener noreferrer">WhatsApp</a>
                                   <a className="rounded-md border border-neutral-200 px-2 py-1 text-xs hover:bg-neutral-50" href={phoneHref(booking.patient_phone)}>Telefon</a>
                                 </>
@@ -616,6 +689,14 @@ function AdminBookings() {
                             <div className="flex flex-wrap gap-1.5">
                               <Button variant="outline" size="sm" className="h-7 text-[11px]" onClick={() => openMove(booking)}>
                                 Przesuń
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-[11px]"
+                                onClick={() => setEdrVoiceBooking(booking)}
+                              >
+                                Dyktuj do EDR
                               </Button>
                               <Button
                                 variant="outline"
@@ -877,6 +958,67 @@ function AdminBookings() {
         {defaultsMessage && <p className="text-xs text-emerald-700">{defaultsMessage}</p>}
         {defaultsError && <p className="text-xs text-red-600">{defaultsError}</p>}
       </section>
+
+      {edrVoiceBooking && (
+        <EdrVoiceVisit booking={edrVoiceBooking} onClose={() => setEdrVoiceBooking(null)} />
+      )}
+
+      {smsBooking && (
+        <div className="fixed inset-0 bg-black/40 z-20 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl max-w-lg w-full p-6 space-y-4">
+            <div>
+              <h3 className="text-lg font-medium">Wyślij SMS</h3>
+              <p className="text-sm text-neutral-500">
+                {smsBooking.patient_name} · {smsBooking.patient_phone || 'brak telefonu'}
+              </p>
+            </div>
+            {smsLoading ? (
+              <p className="text-sm text-neutral-500">Wczytywanie szablonów...</p>
+            ) : (
+              <>
+                <label className="block text-xs uppercase tracking-widest text-neutral-500">Szablon</label>
+                <select
+                  value={smsTemplateId}
+                  onChange={(e) => chooseSmsTemplate(e.target.value)}
+                  className="w-full h-11 px-3 rounded-xl border border-neutral-200"
+                >
+                  {smsTemplates.map((template) => (
+                    <option key={template.id} value={template.id}>{template.label}</option>
+                  ))}
+                </select>
+                <label className="block text-xs uppercase tracking-widest text-neutral-500">Odbiorca</label>
+                <input
+                  value={smsTo}
+                  onChange={(e) => setSmsTo(e.target.value)}
+                  className="w-full h-11 px-3 rounded-xl border border-neutral-200"
+                />
+                <label className="block text-xs uppercase tracking-widest text-neutral-500">Treść SMS</label>
+                <textarea
+                  value={smsMessage}
+                  onChange={(e) => setSmsMessage(e.target.value)}
+                  rows={5}
+                  className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm"
+                />
+                <p className="text-[11px] text-neutral-500">
+                  {smsMessage.length}/670 znaków. SMS zostanie wysłany dopiero po kliknięciu przycisku.
+                </p>
+              </>
+            )}
+            {smsSuccess && <p className="text-xs text-emerald-700">{smsSuccess}</p>}
+            {smsError && <p className="text-xs text-red-600">{smsError}</p>}
+            <div className="flex gap-2 justify-end">
+              <Button variant="ghost" className="h-10 text-xs" onClick={() => setSmsBooking(null)}>Zamknij</Button>
+              <Button
+                className="h-10 text-xs"
+                disabled={smsLoading || smsSending || !smsTo || !smsMessage.trim()}
+                onClick={() => void sendSms()}
+              >
+                {smsSending ? 'Wysyłanie...' : 'Wyślij SMS'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {moving && (
         <div className="fixed inset-0 bg-black/40 z-20 flex items-center justify-center p-4">

@@ -1,4 +1,5 @@
 import {
+  AdminSession,
   AnalyticsSummary,
   AvailabilityRule,
   BlockedPeriod,
@@ -6,38 +7,84 @@ import {
   BookingsBackupRunResult,
   BookingsBackupStatus,
   BookingsRealignResult,
+  ContactIntent,
+  PaymentGatewayStatus,
+  PaymentStartResult,
+  PaymentStatusResult,
   SlotHold,
+  SmsSendResult,
+  SmsStatus,
+  SmsTemplateResponse,
+  PhoneConversation,
+  PhoneThread,
   VisitType,
+  WhatsAppConversation,
+  WhatsAppStatus,
+  WhatsAppThread,
 } from '../types';
 import { BookingApi } from './api';
 import { config } from '../config/features';
 
 const BASE_URL = config.API_BASE_URL;
 
-function adminHeaders(): Record<string, string> {
-  if (typeof sessionStorage === 'undefined') return {};
-  const password = sessionStorage.getItem('rezerwacje_admin_password');
-  return password ? { 'X-Admin-Password': password } : {};
+let adminCsrfToken = '';
+
+function rememberAdminSession(session: AdminSession): AdminSession {
+  adminCsrfToken = session.authenticated ? (session.csrf_token || '') : '';
+  return session;
 }
 
 async function fetchApi<T>(endpoint: string, options?: RequestInit, withAdmin = false): Promise<T> {
+  const method = String(options?.method || 'GET').toUpperCase();
+  const csrfHeader = withAdmin
+    && !['GET', 'HEAD', 'OPTIONS'].includes(method)
+    && adminCsrfToken
+    ? { 'X-CSRF-Token': adminCsrfToken }
+    : {};
   const response = await fetch(`${BASE_URL}${endpoint}`, {
     ...options,
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
-      ...(withAdmin ? adminHeaders() : {}),
+      ...csrfHeader,
       ...options?.headers,
     },
   });
   if (!response.ok) {
-    const error = new Error(`API Error: ${response.statusText}`) as Error & { status?: number };
+    if (response.status === 401) adminCsrfToken = '';
+    let payload: Record<string, unknown> = {};
+    try {
+      payload = await response.json() as Record<string, unknown>;
+    } catch {
+      payload = {};
+    }
+    const message = typeof payload.error === 'string' && payload.error.trim()
+      ? payload.error
+      : `API Error: ${response.statusText}`;
+    const error = new Error(message) as Error & {
+      status?: number;
+      payload?: Record<string, unknown>;
+    };
     error.status = response.status;
+    error.payload = payload;
     throw error;
   }
   return response.json();
 }
 
 export const productionBookingApi: BookingApi = {
+  getAdminSession: async () => rememberAdminSession(await fetchApi<AdminSession>('/admin/session')),
+  adminLogin: async (login, password) => rememberAdminSession(await fetchApi<AdminSession>(
+    '/admin/login',
+    { method: 'POST', body: JSON.stringify({ login, password }) },
+  )),
+  adminLogout: async () => {
+    try {
+      await fetchApi<void>('/admin/logout', { method: 'POST' }, true);
+    } finally {
+      adminCsrfToken = '';
+    }
+  },
   getVisitTypes: () => fetchApi<VisitType[]>('/visit-types'),
   getSiteStatus: () => fetchApi<{ schedule_enabled: boolean }>('/site'),
   getAvailableDays: (visitTypeId, month, year) =>
@@ -52,6 +99,11 @@ export const productionBookingApi: BookingApi = {
   getBookingByToken: (token) => fetchApi<Booking>(`/bookings?token=${encodeURIComponent(token)}`),
   confirmBookingByToken: (token) => fetchApi<Booking>('/bookings/confirm', { method: 'POST', body: JSON.stringify({ token }) }),
   cancelBookingByToken: (token) => fetchApi<Booking>(`/bookings?token=${encodeURIComponent(token)}`, { method: 'DELETE' }),
+  getPaymentGatewayStatus: () => fetchApi<PaymentGatewayStatus>('/admin/payments/status', undefined, true),
+  startPayment: (token) =>
+    fetchApi<PaymentStartResult>('/payments/start', { method: 'POST', body: JSON.stringify({ token }) }),
+  getPaymentStatus: (token) =>
+    fetchApi<PaymentStatusResult>(`/payments/status?token=${encodeURIComponent(token)}`),
 
   holdSlot: (data) => fetchApi<SlotHold>('/holds', { method: 'POST', body: JSON.stringify(data) }),
   refreshHold: (id) => fetchApi<SlotHold>(`/holds/${id}/refresh`, { method: 'POST' }),
@@ -90,6 +142,76 @@ export const productionBookingApi: BookingApi = {
     fetchApi<{ ok: boolean; recipients: Record<string, boolean>; summary: unknown[] }>(
       '/admin/reports/visit/send-test',
       { method: 'POST', body: JSON.stringify({ dates }) },
+      true,
+    ),
+  getSmsStatus: () =>
+    fetchApi<SmsStatus>('/admin/sms/status', undefined, true),
+  getSmsTemplates: (bookingId) =>
+    fetchApi<SmsTemplateResponse>(
+      `/admin/sms/templates?booking_id=${encodeURIComponent(bookingId)}`,
+      undefined,
+      true,
+    ),
+  sendSms: (data) =>
+    fetchApi<SmsSendResult>('/admin/sms/send', { method: 'POST', body: JSON.stringify(data) }, true),
+  getWhatsAppStatus: () =>
+    fetchApi<WhatsAppStatus>('/admin/whatsapp/status', undefined, true),
+  getWhatsAppThreads: (limit = 50) =>
+    fetchApi<WhatsAppThread[]>(
+      `/admin/whatsapp/threads?limit=${Math.max(1, Math.min(100, Math.round(limit)))}`,
+      undefined,
+      true,
+    ),
+  getWhatsAppMessages: (threadId) =>
+    fetchApi<WhatsAppConversation>(
+      `/admin/whatsapp/threads/${encodeURIComponent(threadId)}/messages`,
+      undefined,
+      true,
+    ),
+  markWhatsAppThreadRead: (threadId) =>
+    fetchApi<void>(
+      `/admin/whatsapp/threads/${encodeURIComponent(threadId)}/read`,
+      { method: 'POST' },
+      true,
+    ),
+  completeWhatsAppBotThread: (threadId) =>
+    fetchApi<WhatsAppConversation>(
+      `/admin/whatsapp/threads/${encodeURIComponent(threadId)}/bot/done`,
+      { method: 'POST' },
+      true,
+    ),
+  replyWhatsAppThread: (threadId, body) =>
+    fetchApi<WhatsAppConversation>(
+      `/admin/whatsapp/threads/${encodeURIComponent(threadId)}/reply`,
+      { method: 'POST', body: JSON.stringify({ body }) },
+      true,
+    ),
+  getPhoneThreads: (limit = 50) =>
+    fetchApi<PhoneThread[]>(
+      `/admin/phone/threads?limit=${Math.max(1, Math.min(100, Math.round(limit)))}`,
+      undefined,
+      true,
+    ),
+  getPhoneMessages: (threadId) =>
+    fetchApi<PhoneConversation>(
+      `/admin/phone/threads/${encodeURIComponent(threadId)}/messages`,
+      undefined,
+      true,
+    ),
+  getContactIntents: () =>
+    fetchApi<ContactIntent[]>('/admin/contact-intents', undefined, true),
+  createContactIntent: (data) =>
+    fetchApi<ContactIntent>('/admin/contact-intents', { method: 'POST', body: JSON.stringify(data) }, true),
+  updateContactIntent: (id, data) =>
+    fetchApi<ContactIntent>(
+      `/admin/contact-intents/${encodeURIComponent(id)}`,
+      { method: 'PUT', body: JSON.stringify(data) },
+      true,
+    ),
+  deleteContactIntent: (id) =>
+    fetchApi<void>(
+      `/admin/contact-intents/${encodeURIComponent(id)}`,
+      { method: 'DELETE' },
       true,
     ),
 };

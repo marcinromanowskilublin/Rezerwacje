@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { site } from '../../config/site';
 
-const updatedAt = '9 września 2026 r.';
+const updatedAt = '5 listopada 2026 r.';
 
 function Section({
   title,
@@ -61,6 +61,16 @@ export default function PrivacyPolicy() {
             Formularz nie służy do przekazywania opisu stanu zdrowia, diagnozy ani dokumentacji
             medycznej. Prosimy nie wpisywać takich informacji w polach kontaktowych.
           </p>
+          <p>
+            Jeżeli kontaktujesz się z gabinetem przez WhatsApp, przetwarzamy numer telefonu, nazwę
+            profilu, treść i rodzaj wiadomości, czas jej wysłania oraz techniczny status doręczenia.
+            Numer może zostać dopasowany do rezerwacji, aby właściwie podpisać wątek w panelu gabinetu.
+          </p>
+          <p>
+            Po uprzednim poinformowaniu pacjenta przebieg wizyty może zostać nagrany wyłącznie w celu
+            sporządzenia transkrypcji do dokumentacji medycznej. Lekarz sprawdza tekst przed zapisaniem
+            go w systemie EDR.
+          </p>
         </Section>
 
         <Section title="3. Cele i podstawy przetwarzania">
@@ -96,8 +106,15 @@ export default function PrivacyPolicy() {
             tokenu pacjenta.
           </p>
           <p>
-            WhatsApp jest usługą zewnętrzną i nie jest wymagany do dokonania rezerwacji. Po kliknięciu
-            przycisku „Napisz na WhatsApp” dalsze przetwarzanie odbywa się zgodnie z zasadami Meta.
+            WhatsApp jest usługą zewnętrzną dostarczaną przez Meta i nie jest wymagany do dokonania
+            rezerwacji. Wiadomości mogą być odbierane i wysyłane przez oficjalny interfejs WhatsApp
+            Business Platform. Meta przetwarza dane zgodnie z własnymi zasadami i stosowanymi
+            mechanizmami przekazywania danych poza Europejski Obszar Gospodarczy.
+          </p>
+          <p>
+            Opcjonalną transkrypcję dźwięku realizuje Deepgram jako podmiot przetwarzający. Żądanie jest
+            kierowane do infrastruktury w Unii Europejskiej z wyłączeniem użycia treści do ulepszania
+            modeli i żądaniem zerowej retencji. Zweryfikowana transkrypcja trafia do MyDr EDR.
           </p>
         </Section>
 
@@ -111,6 +128,16 @@ export default function PrivacyPolicy() {
           <p>
             Dokumentacja medyczna, jeżeli powstanie w związku z udzieleniem świadczenia, jest
             prowadzona i przechowywana odrębnie według właściwych przepisów.
+          </p>
+          <p>
+            Aplikacja nie zapisuje pliku audio po zakończeniu transkrypcji. Zweryfikowany tekst staje
+            się częścią dokumentacji medycznej i jest przechowywany zgodnie z okresami właściwymi dla
+            tej dokumentacji.
+          </p>
+          <p>
+            Kopia wątków WhatsApp w panelu gabinetu jest przechowywana w postaci zaszyfrowanej
+            maksymalnie przez 30 dni, po czym wiadomości są automatycznie usuwane. Nie zmienia to
+            okresów przechowywania stosowanych niezależnie przez Meta w usłudze WhatsApp.
           </p>
         </Section>
 

@@ -1,0 +1,88 @@
+-- Uruchamiaj wyłącznie przed pierwszym importem WhatsApp.
+-- Migracja celowo zatrzymuje się, jeśli istnieją już wiadomości.
+
+SET @whatsapp_message_count = (
+  SELECT COUNT(*)
+  FROM `whatsapp_messages`
+);
+
+SET @assert_empty = IF(
+  @whatsapp_message_count = 0,
+  'SELECT 1',
+  'SIGNAL SQLSTATE ''45000'' SET MESSAGE_TEXT = ''Najpierw wyeksportuj istniejące wiadomości WhatsApp'''
+);
+
+PREPARE whatsapp_assert_statement FROM @assert_empty;
+EXECUTE whatsapp_assert_statement;
+DEALLOCATE PREPARE whatsapp_assert_statement;
+
+SET FOREIGN_KEY_CHECKS = 0;
+DROP TABLE IF EXISTS `whatsapp_messages`;
+DROP TABLE IF EXISTS `whatsapp_threads`;
+SET FOREIGN_KEY_CHECKS = 1;
+
+CREATE TABLE `whatsapp_threads` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `wa_id_hash` char(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  `wa_id_ciphertext` varbinary(128) NOT NULL,
+  `wa_id_iv` varbinary(12) NOT NULL,
+  `wa_id_tag` varbinary(16) NOT NULL,
+  `profile_name_ciphertext` blob DEFAULT NULL,
+  `profile_name_iv` varbinary(12) DEFAULT NULL,
+  `profile_name_tag` varbinary(16) DEFAULT NULL,
+  `patient_name_ciphertext` blob DEFAULT NULL,
+  `patient_name_iv` varbinary(12) DEFAULT NULL,
+  `patient_name_tag` varbinary(16) DEFAULT NULL,
+  `booking_id_ciphertext` varbinary(128) DEFAULT NULL,
+  `booking_id_iv` varbinary(12) DEFAULT NULL,
+  `booking_id_tag` varbinary(16) DEFAULT NULL,
+  `is_patient` tinyint(1) NOT NULL DEFAULT 0,
+  `issue_category_ciphertext` varbinary(128) NOT NULL,
+  `issue_category_iv` varbinary(12) NOT NULL,
+  `issue_category_tag` varbinary(16) NOT NULL,
+  `last_message_id` bigint unsigned DEFAULT NULL,
+  `last_message_at` datetime NOT NULL,
+  `last_inbound_at` datetime DEFAULT NULL,
+  `unread_count` int unsigned NOT NULL DEFAULT 0,
+  `bot_state` varchar(32) NOT NULL DEFAULT 'idle',
+  `bot_paused` tinyint(1) NOT NULL DEFAULT 0,
+  `bot_last_auto_reply_at` datetime DEFAULT NULL,
+  `bot_next_action_at` datetime DEFAULT NULL,
+  `bot_data_ciphertext` longblob DEFAULT NULL,
+  `bot_data_iv` varbinary(12) DEFAULT NULL,
+  `bot_data_tag` varbinary(16) DEFAULT NULL,
+  `triage_summary_ciphertext` blob DEFAULT NULL,
+  `triage_summary_iv` varbinary(12) DEFAULT NULL,
+  `triage_summary_tag` varbinary(16) DEFAULT NULL,
+  `requires_attention` tinyint(1) NOT NULL DEFAULT 0,
+  `priority` varchar(20) NOT NULL DEFAULT 'normal',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_whatsapp_threads_wa_hash` (`wa_id_hash`),
+  KEY `idx_whatsapp_threads_last_message` (`last_message_at`),
+  KEY `idx_whatsapp_threads_bot_due` (`bot_next_action_at`, `bot_paused`, `bot_state`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `whatsapp_messages` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `thread_id` bigint unsigned NOT NULL,
+  `meta_message_id` varchar(160) NOT NULL,
+  `direction` enum('inbound','outbound') NOT NULL,
+  `message_type` varchar(32) NOT NULL DEFAULT 'text',
+  `body_ciphertext` longblob DEFAULT NULL,
+  `body_iv` varbinary(12) DEFAULT NULL,
+  `body_tag` varbinary(16) DEFAULT NULL,
+  `status_name` varchar(32) NOT NULL DEFAULT 'received',
+  `reply_to_meta_id` varchar(160) DEFAULT NULL,
+  `sent_at` datetime NOT NULL,
+  `status_at` datetime DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_whatsapp_messages_meta_id` (`meta_message_id`),
+  KEY `idx_whatsapp_messages_thread_time` (`thread_id`, `sent_at`, `id`),
+  KEY `idx_whatsapp_messages_retention` (`sent_at`),
+  CONSTRAINT `fk_whatsapp_messages_thread`
+    FOREIGN KEY (`thread_id`) REFERENCES `whatsapp_threads` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

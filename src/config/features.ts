@@ -6,7 +6,7 @@ export const config = {
   API_MODE: import.meta.env.VITE_API_MODE || inferredMode,
   API_BASE_URL: import.meta.env.VITE_API_BASE_URL || '/rezerwacja/api',
   features: {
-    payments: false,
+    payments: true,
     googleCalendar: false,
     googleMeet: false,
     gmailNotifications: false,

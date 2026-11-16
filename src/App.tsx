@@ -17,6 +17,7 @@ import AdminLogin from './pages/admin/AdminLogin';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminSchedule from './pages/admin/AdminSchedule';
 import AdminSettings from './pages/admin/AdminSettings';
+import AdminMessages from './pages/admin/AdminMessages';
 import PrivacyPolicy from './pages/legal/PrivacyPolicy';
 import BookingTerms from './pages/legal/BookingTerms';
 import { BookingProvider } from './pages/patient/BookingContext';
@@ -67,6 +68,7 @@ export default function App() {
           <Route path="zasady-rezerwacji" element={<BookingTerms />} />
           <Route path="admin/login" element={<AdminLogin />} />
           <Route path="admin" element={<AdminDashboard />} />
+          <Route path="admin/wiadomosci" element={<AdminMessages />} />
           <Route path="admin/grafik" element={<AdminSchedule />} />
           <Route path="admin/ustawienia" element={<AdminSettings />} />
           <Route path="*" element={<Navigate to="/" replace />} />

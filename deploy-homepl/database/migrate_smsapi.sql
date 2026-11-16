@@ -1,0 +1,20 @@
+CREATE TABLE IF NOT EXISTS `smsapi_messages` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `booking_id` varchar(36) DEFAULT NULL,
+  `callback_ref` char(32) NOT NULL,
+  `provider_message_id` varchar(32) DEFAULT NULL,
+  `purpose` varchar(32) NOT NULL DEFAULT 'manual',
+  `status_code` varchar(16) DEFAULT NULL,
+  `status_name` varchar(32) NOT NULL DEFAULT 'SUBMITTING',
+  `provider_error_code` varchar(32) DEFAULT NULL,
+  `submitted_at` datetime DEFAULT NULL,
+  `delivered_at` datetime DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_smsapi_callback_ref` (`callback_ref`),
+  UNIQUE KEY `idx_smsapi_provider_message_id` (`provider_message_id`),
+  KEY `idx_smsapi_booking` (`booking_id`, `created_at`),
+  KEY `idx_smsapi_status` (`status_name`, `created_at`),
+  CONSTRAINT `fk_smsapi_booking` FOREIGN KEY (`booking_id`) REFERENCES `bookings` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

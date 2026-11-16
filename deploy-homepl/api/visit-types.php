@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/bootstrap.php';
+require_once __DIR__ . '/payments.php';
 
 $route = $api_route ?? api_route();
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
@@ -11,7 +12,16 @@ try {
 
     if ($route === '/visit-types' && $method === 'GET') {
         $stmt = $pdo->query('SELECT * FROM visit_types WHERE active = 1');
-        json_response(array_map('normalize_booking', $stmt->fetchAll()));
+        $rows = array_map('normalize_booking', $stmt->fetchAll());
+        if (!payment_requirement_enabled()) {
+            foreach ($rows as &$row) {
+                if (($row['payment_policy'] ?? 'optional') === 'required') {
+                    $row['payment_policy'] = 'optional';
+                }
+            }
+            unset($row);
+        }
+        json_response($rows);
     }
 
     if ($route === '/admin/visit-types' && $method === 'GET') {
